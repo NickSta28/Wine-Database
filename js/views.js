@@ -336,6 +336,7 @@ function cols(rows, fmt = num) {
   return '<div class="cols">' + rows.map(([k, v]) => '<div class="col"><span>' + fmt(v) + '</span><i style="height:' + Math.max(2, v / max * 80).toFixed(0) + 'px"></i></div>').join('') + '</div>' +
     '<div class="cols-x">' + rows.map(([k]) => '<span>' + esc(k) + '</span>').join('') + '</div>';
 }
+const boxT = (title, right, inner) => '<div class="card chart" style="margin-top:12px"><div class="chart-head"><div class="eyebrow">' + esc(title) + '</div>' + right + '</div>' + inner + '</div>';
 const box = (title, inner) => '<div class="card chart" style="margin-top:12px"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">' + esc(title) + '</div>' + inner + '</div>';
 export function statsView(S, D) {
   const tab = S.statTab;
@@ -370,10 +371,13 @@ export function statsView(S, D) {
     if (!ps.length) body = '<div class="empty"><b>Noch keine Käufe</b></div>';
     else {
       const val = (x) => (x.p.price != null ? x.p.qty * Number(x.p.price) : 0);
+      const eurM = S.buyMetric !== 'qty';
+      const mval = eurM ? val : (x) => x.p.qty, mfmt = eurM ? (v) => eur(v, 0) : num;
+      const metricSeg = '<div class="mseg" role="group" aria-label="Einheit">' + [['eur', 'Euro'], ['qty', 'Flaschen']].map(([k, l]) => '<button data-act="buy-metric" data-k="' + k + '" aria-pressed="' + ((k === 'eur') === eurM) + '">' + l + '</button>').join('') + '</div>';
       const spent = ps.reduce((s, x) => s + val(x), 0), bottles = ps.reduce((s, x) => s + x.p.qty, 0), priced = ps.filter((x) => x.p.price != null).reduce((s, x) => s + x.p.qty, 0);
       body = '<div class="kpis"><div class="kpi dark"><div class="l">Ausgegeben</div><div class="v">' + eur(spent, 0) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(bottles) + '</div></div><div class="kpi"><div class="l">Ø je Flasche</div><div class="v">' + eur2(priced ? spent / priced : 0) + '</div></div></div>' +
-        box('Ausgaben pro Jahr', cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), val).sort((a, b) => a[0] - b[0]).slice(-8), (v) => eur(v, 0))) +
-        box('Top Händler', hbars(groupSum(ps, (x) => x.p.merchant, val).slice(0, 6), (v) => eur(v, 0)));
+        boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg, cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt)) +
+        boxT('Top Händler', metricSeg, hbars(groupSum(ps, (x) => x.p.merchant, mval).slice(0, 6), mfmt));
     }
   }
   return head('Keller in Zahlen', 'Statistik') + seg + body;

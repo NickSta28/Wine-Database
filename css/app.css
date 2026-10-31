@@ -8,8 +8,8 @@
   --scrim:rgba(43,32,36,.45);
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;overflow-x:hidden}
-body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.45 var(--sans);overflow-x:hidden}
+html{-webkit-text-size-adjust:100%;overflow-x:hidden;overflow-x:clip;max-width:100%}
+body{margin:0;max-width:100%;overflow-x:clip;background:var(--paper);color:var(--ink);font:400 15px/1.45 var(--sans);overflow-x:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit;text-decoration:none}
@@ -44,7 +44,7 @@ svg.i{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke
 .search{position:relative;margin-top:12px;z-index:5}
 .search .box{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px 0 16px;border-radius:14px;background:var(--card);border:1px solid var(--line2);color:var(--muted)}
 .search .box svg{width:18px;height:18px;flex:none}
-.search input{flex:1;min-width:0;height:44px;border:0;background:transparent;outline:0;font:400 15px var(--sans);color:var(--ink)}
+.search input{flex:1;min-width:0;height:44px;border:0;background:transparent;outline:0;font:400 16px var(--sans);color:var(--ink)}
 .search input::placeholder{color:var(--muted)}
 .search input::-webkit-search-cancel-button{display:none}
 .search .clr{width:36px;height:36px;border:0;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center}
@@ -183,12 +183,19 @@ svg.i{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke
 .cols .col i{width:100%;border-radius:5px 5px 0 0;background:var(--wine);min-height:2px}
 .cols-x{display:flex;gap:8px;margin-top:6px;font:500 11px var(--sans);color:var(--muted);text-align:center}
 .cols-x span{flex:1;min-width:0;overflow:hidden}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.chart-head .eyebrow{letter-spacing:.1em}
+.mseg{display:flex;padding:2px;border-radius:10px;background:var(--soft);flex:none}
+.mseg button{min-height:32px;min-width:44px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:500 12px var(--sans);color:var(--muted)}
+.mseg button[aria-pressed=true]{background:var(--card);color:var(--wine);font-weight:600}
 
 /* Formulare */
 .field{display:flex;flex-direction:column;justify-content:center;min-height:54px;padding:6px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
 .field:focus-within{border-color:var(--wine)}
 .field label{font:500 11px var(--sans);color:var(--muted)}
-.field input,.field select,.field textarea{border:0;background:transparent;outline:0;padding:0;font:500 15px var(--sans);width:100%;min-width:0}
+.field input,.field select,.field textarea{border:0;background:transparent;outline:0;padding:0;font:500 16px var(--sans);width:100%;min-width:0}
+/* iOS zoomt in Eingabefelder unter 16 px und springt danach nicht sauber zurück */
+input,select,textarea{font-size:16px}
 .field textarea{min-height:72px;resize:vertical;font-weight:400;line-height:1.45;margin-top:2px}
 .fgrid{display:flex;flex-direction:column;gap:8px}
 .frow{display:flex;gap:8px}

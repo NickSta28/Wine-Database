@@ -173,6 +173,7 @@ const actions = {
   'drunk-filter'(el) { S.drunkFilter = el.dataset.k; S.drunkLimit = 40; render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
+  'buy-metric'(el) { S.buyMetric = el.dataset.k; render(); },
   cap(el) { if (!S.form) S.form = blankForm(); S.form.cap = el.dataset.c || ''; $$('.sw').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); },
   'buy-again'(el) { const k = el.dataset.k; S.form.buyAgain = S.form.buyAgain === k ? null : k; $$('.opts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.buyAgain))); },
   drink(el) { const w = S.D.byId.get(el.dataset.id); S.form = { ...(S.form || {}), buyAgain: null }; openSheet(V.drinkSheet(S, w)); },
