@@ -296,7 +296,7 @@ const changes = {
     let j;
     try { j = JSON.parse(await file.text()); } catch { toast('Die Datei ist kein gültiges JSON', true); return; }
     if (!j || j.format !== 'wine-database' || !Array.isArray(j.wines)) { toast('Keine Wine-Database-Importdatei', true); return; }
-    if (S.data.wines.length && !confirm('Du hast bereits ' + S.data.wines.length + ' Weine. Der Import fügt alle Einträge zusätzlich hinzu. Fortfahren?')) return;
+    if (S.data.wines.length && j.wines.length && !confirm('Du hast bereits ' + S.data.wines.length + ' Weine. Der Import fügt alle Einträge zusätzlich hinzu. Fortfahren?')) return;
     await runImport(j);
   }
 };
@@ -350,7 +350,10 @@ async function runImport(j) {
     if ((j.wishlist || []).length) await chunk('wishlist', j.wishlist.map((x) => ({ producer: x.producer || null, name: x.name, grape: x.grape || null, wine_type: x.wine_type || null, region: x.region || null, vintage: x.vintage || null, idea_source: x.idea_source || null, merchant: x.merchant || null, price: x.price == null ? null : x.price, url: x.url || null, note: x.note || null })));
     prog('Wunschliste angelegt');
     await load(); closeSheet(); render();
-    toast(j.wines.length + ' Weine importiert' + (failed ? ' · ' + failed + ' Etiketten fehlgeschlagen' : ''), failed > 0);
+    const parts = [];
+    if (j.wines.length) parts.push(j.wines.length + ' Weine');
+    if ((j.wishlist || []).length) parts.push(j.wishlist.length + ' Wünsche');
+    toast((parts.join(' und ') || 'Nichts') + ' importiert' + (failed ? ' · ' + failed + ' Etiketten fehlgeschlagen' : ''), failed > 0);
   } catch (e) {
     console.error(e); closeSheet(); toast('Import abgebrochen: ' + errMsg(e), true); await guard(reload);
   }
