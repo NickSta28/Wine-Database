@@ -10,7 +10,7 @@ const S = {
   data: null, D: null, urls: {}, loaded: false,
   route: { name: 'home', arg: '' }, prevHash: '',
   q: '', showDrop: false, recent: [], fachSort: 'stock',
-  drunkFilter: 'all', drunkLimit: 40, statTab: 'stock',
+  drunkFilter: 'all', drunkLimit: 40, statTab: 'stock', expand: new Set(),
   form: null, busy: false, backHref: '#/regal', backLabel: 'Weinregal'
 };
 try { const p = JSON.parse(localStorage.getItem(PREFS) || '{}'); if (Array.isArray(p.recent)) S.recent = p.recent.slice(0, 3); } catch { /* egal */ }
@@ -50,7 +50,7 @@ function parseHash() {
   const [path, qs] = h.split('?');
   const parts = path.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(qs || '');
-  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', vorschlaege: 'reco', wunschliste: 'wish' };
+  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', vorschlaege: 'reco', wunschliste: 'wish' };
   return { name: map[parts[0]] || 'home', arg: parts[1] || '', params };
 }
 const BACK_LABEL = { home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik' };
@@ -59,7 +59,7 @@ function onRoute() {
   const prev = S.route;
   if (r.name === 'wine' && prev.name !== 'wine') {
     S.backHref = S.prevHash || '#/regal';
-    S.backLabel = prev.name === 'fach' ? 'Fach ' + prev.arg : (BACK_LABEL[prev.name] || 'Zurück');
+    S.backLabel = prev.name === 'fach' ? 'Fach ' + prev.arg : prev.name === 'list' ? (prev.params.get('v') || 'Liste') : (BACK_LABEL[prev.name] || 'Zurück');
   }
   if (r.name === 'regal' && r.params.get('q') != null) { S.q = r.params.get('q'); S.showDrop = false; }
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
@@ -79,8 +79,13 @@ function render(top) {
   const y = window.scrollY, D = S.D, r = S.route;
   let html = '', tab = 'home';
   if (r.name === 'regal') html = V.regalView(S, D);
-  else if (r.name === 'fach') html = V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || [], false);
-  else if (r.name === 'search') { const m = matcher(S.q); html = V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], true); }
+  else if (r.name === 'fach') html = V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
+  else if (r.name === 'search') { const m = matcher(S.q); html = V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false }); }
+  else if (r.name === 'list') {
+    const f = V.LIST_FIELDS[r.params.get('k')] || V.LIST_FIELDS.grape, v = r.params.get('v') || '';
+    html = V.fachView(S, D, v, D.wines.filter((w) => w.stock > 0 && f[1](w) === v), { eyebrow: f[0] + ' im Keller', back: ['#/statistik', 'Statistik'], mini: false });
+    tab = 'stats';
+  }
   else if (r.name === 'wine') { const w = D.byId.get(r.arg); html = w ? V.detailView(S, D, w) : '<div class="empty"><b>Wein nicht gefunden</b></div>'; }
   else if (r.name === 'drunk') html = V.drunkView(S, D);
   else if (r.name === 'neu') { html = V.newView(S, D); tab = 'neu'; }
@@ -174,6 +179,7 @@ const actions = {
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
   'buy-metric'(el) { S.buyMetric = el.dataset.k; render(); },
+  expand(el) { const k = el.dataset.k; if (S.expand.has(k)) S.expand.delete(k); else S.expand.add(k); render(); },
   cap(el) { if (!S.form) S.form = blankForm(); S.form.cap = el.dataset.c || ''; $$('.sw').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); },
   'buy-again'(el) { const k = el.dataset.k; S.form.buyAgain = S.form.buyAgain === k ? null : k; $$('.opts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.buyAgain))); },
   drink(el) { const w = S.D.byId.get(el.dataset.id); S.form = { ...(S.form || {}), buyAgain: null }; openSheet(V.drinkSheet(S, w)); },

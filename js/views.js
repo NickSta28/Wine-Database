@@ -146,17 +146,19 @@ function wineRow(w, showStock) {
 }
 
 /* ---------- Fach / Trefferliste ---------- */
-export function fachView(S, D, name, list, isSearch) {
+// opts: { eyebrow, back: [href, label], mini }
+export function fachView(S, D, name, list, opts = {}) {
+  const o = { eyebrow: 'Fach', back: ['#/regal', 'Weinregal'], mini: true, ...opts };
   const sorters = { stock: ['Bestand', (a, b) => b.stock - a.stock || a.name.localeCompare(b.name)], producer: ['Weingut', (a, b) => a.producer.localeCompare(b.producer) || a.name.localeCompare(b.name)], vintage: ['Jahrgang', (a, b) => (b.vintage || 0) - (a.vintage || 0)], region: ['Region', (a, b) => String(a.region || '').localeCompare(String(b.region || ''))] };
   const sorted = list.slice().sort(sorters[S.fachSort] ? sorters[S.fachSort][1] : sorters.stock[1]);
   const b = list.reduce((s, w) => s + w.stock, 0), v = list.reduce((s, w) => s + w.value, 0);
   const nProd = new Set(list.map((w) => w.producer).filter(Boolean)).size, nReg = new Set(list.map((w) => w.region).filter(Boolean)).size;
   const nine = sorted.slice().sort(sorters.stock[1]).slice(0, 9).map((w) => cap(capOf(w), 's20'));
   const mini = [nine.slice(6, 9), nine.slice(3, 6), nine.slice(0, 3)].filter((r) => r.length).map((r) => '<div class="lr">' + r.join('') + '</div>').join('');
-  return backBtn('#/regal', 'Weinregal') +
-    '<div class="top" style="align-items:center"><div><div class="eyebrow">' + (isSearch ? 'Suche' : 'Fach') + '</div><h1 class="title">' + esc(name) + '</h1>' +
+  return backBtn(o.back[0], o.back[1]) +
+    '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +
-    (isSearch ? '' : '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>') + '</div>' +
+    (o.mini ? '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>' : '') + '</div>' +
     '<div class="kpis"><div class="kpi dark"><div class="l">Weine</div><div class="v">' + num(list.length) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(b) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(v, 0) + '</div></div></div>' +
     '<div class="chips" style="margin-top:16px">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
     (list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
@@ -341,15 +343,25 @@ export function wishSheet(D, x = {}) {
 }
 
 /* ---------- Statistik ---------- */
-function donut(parts, total, label) {
+export const LIST_FIELDS = { grape: ['Rebsorte', (w) => w.grape], region: ['Region', (w) => w.region], producer: ['Weingut', (w) => w.producer], type: ['Weinart', (w) => w.wine_type] };
+export const listHref = (field, value) => '#/liste?k=' + field + '&v=' + encodeURIComponent(value);
+function donut(parts, total, label, link) {
   const C = 2 * Math.PI * 52; let off = 0;
   const segs = parts.map(([k, v, col]) => { const len = v / total * C; const s = '<circle cx="70" cy="70" r="52" fill="none" stroke="' + col + '" stroke-width="20" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"/>'; off += len; return s; }).join('');
+  const item = (k, v, col) => '<i style="background:' + col + '"></i><span>' + esc(k) + '</span><em>' + num(v) + '</em>';
   return '<div class="donut"><div class="c"><svg width="128" height="128" viewBox="0 0 140 140" role="img" aria-label="' + esc(parts.map(([k, v]) => k + ' ' + v).join(', ')) + '" style="transform:rotate(-90deg)">' + segs + '</svg><div><b>' + num(total) + '</b><span>' + label + '</span></div></div>' +
-    '<div class="lg">' + parts.map(([k, v, col]) => '<div><i style="background:' + col + '"></i><span>' + esc(k) + '</span><em>' + num(v) + '</em></div>').join('') + '</div></div>';
+    '<div class="lg">' + parts.map(([k, v, col]) => link ? '<a href="' + esc(link(k)) + '">' + item(k, v, col) + icon('chev', 'i hchev') + '</a>' : '<div>' + item(k, v, col) + '</div>').join('') + '</div></div>';
 }
-function hbars(rows, fmt = num) {
-  const max = Math.max(1, ...rows.map((r) => r[1]));
-  return '<div class="hbars">' + rows.map(([k, v]) => '<div class="hbar"><span class="n">' + esc(k) + '</span><span class="tr"><i style="width:' + (v / max * 100).toFixed(1) + '%"></i></span><span class="v">' + fmt(v) + '</span></div>').join('') + '</div>';
+// opt: { key, open, link } – key/open: aufklappbar ab 7 Einträgen, link: Balken führt zur Weinliste
+function hbars(rows, fmt = num, opt = {}) {
+  const LIMIT = 6, max = Math.max(1, ...rows.map((r) => r[1]));
+  const shown = opt.key && !opt.open ? rows.slice(0, LIMIT) : rows;
+  const inner = (k, v) => '<span class="n">' + esc(k) + '</span><span class="tr"><i style="width:' + (v / max * 100).toFixed(1) + '%"></i></span><span class="v">' + fmt(v) + '</span>';
+  return '<div class="hbars">' + shown.map(([k, v]) => opt.link
+    ? '<a class="hbar link" href="' + esc(opt.link(k)) + '" aria-label="' + esc(k + ': ' + fmt(v) + ', Weine anzeigen') + '">' + inner(k, v) + icon('chev', 'i hchev') + '</a>'
+    : '<div class="hbar">' + inner(k, v) + '</div>').join('') + '</div>' +
+    (opt.key && rows.length > LIMIT ? '<button class="xp" data-act="expand" data-k="' + opt.key + '" aria-expanded="' + !!opt.open + '">' +
+      (opt.open ? 'Weniger anzeigen' : 'Alle ' + rows.length + ' anzeigen') + icon('chev', 'i') + '</button>' : '');
 }
 function cols(rows, fmt = num) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
@@ -368,11 +380,11 @@ export function statsView(S, D) {
     else {
       const parts = Object.entries(t.byType).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v, TYPE_COLOR[k]]);
       const vint = groupSum(inS, (w) => w.vintage, (w) => w.stock).sort((a, b) => a[0] - b[0]).slice(-8);
-      body = box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen')) +
-        box('Top Rebsorten im Keller', hbars(groupSum(inS, (w) => w.grape, (w) => w.stock).slice(0, 6))) +
-        box('Regionen', hbars(groupSum(inS, (w) => w.region, (w) => w.stock).slice(0, 6))) +
+      body = box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
+        box('Rebsorten im Keller', hbars(groupSum(inS, (w) => w.grape, (w) => w.stock), num, { key: 'grape', open: S.expand.has('grape'), link: (k) => listHref('grape', k) })) +
+        box('Regionen', hbars(groupSum(inS, (w) => w.region, (w) => w.stock), num, { key: 'region', open: S.expand.has('region'), link: (k) => listHref('region', k) })) +
         (vint.length ? box('Jahrgänge im Keller', cols(vint)) : '') +
-        box('Lagerwert nach Weingut', hbars(groupSum(inS, (w) => w.producer, (w) => w.value).slice(0, 6), (v) => eur(v, 0)));
+        box('Lagerwert nach Weingut', hbars(groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), { key: 'producer', open: S.expand.has('producer'), link: (k) => listHref('producer', k) }));
     }
   } else if (tab === 'drunk') {
     const items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
@@ -382,8 +394,8 @@ export function statsView(S, D) {
       const ba = BUY_AGAIN.map(([k, l]) => [l, items.filter((x) => x.d.buy_again === k).length]).filter((x) => x[1]);
       const fav = groupSum(items.filter((x) => x.d.buy_again === 'ja'), (x) => x.w.producer, () => 1).slice(0, 6);
       body = (years.length ? box('Flaschen pro Jahr', cols(years)) : '') +
-        box('Meistgetrunkene Rebsorten', hbars(groupSum(items, (x) => x.w.grape, (x) => x.d.qty).slice(0, 6))) +
-        (fav.length ? box('Lieblings-Weingüter (nochmal kaufen: ja)', hbars(fav)) : '') +
+        box('Meistgetrunkene Rebsorten', hbars(groupSum(items, (x) => x.w.grape, (x) => x.d.qty), num, { key: 'dgrape', open: S.expand.has('dgrape') })) +
+        (fav.length ? box('Lieblings-Weingüter (nochmal kaufen: ja)', hbars(fav, num, { key: 'fav', open: S.expand.has('fav') })) : '') +
         (ba.length ? box('Nochmal kaufen?', hbars(ba)) : '');
     }
   } else {
@@ -397,7 +409,7 @@ export function statsView(S, D) {
       const spent = ps.reduce((s, x) => s + val(x), 0), bottles = ps.reduce((s, x) => s + x.p.qty, 0), priced = ps.filter((x) => x.p.price != null).reduce((s, x) => s + x.p.qty, 0);
       body = '<div class="kpis"><div class="kpi dark"><div class="l">Ausgegeben</div><div class="v">' + eur(spent, 0) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(bottles) + '</div></div><div class="kpi"><div class="l">Ø je Flasche</div><div class="v">' + eur2(priced ? spent / priced : 0) + '</div></div></div>' +
         boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg, cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt)) +
-        boxT('Top Händler', metricSeg, hbars(groupSum(ps, (x) => x.p.merchant, mval).slice(0, 6), mfmt));
+        boxT('Händler', metricSeg, hbars(groupSum(ps, (x) => x.p.merchant, mval), mfmt, { key: 'merch', open: S.expand.has('merch') }));
     }
   }
   return head('Keller in Zahlen', 'Statistik') + seg + body;
