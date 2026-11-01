@@ -199,11 +199,25 @@ export function detailView(S, D, w) {
     '<div class="sec">Beim Händler suchen</div>' + shopLinks(w) +
     '<div class="btns" style="margin-top:28px"><button class="btn ghost" data-act="del-wine" data-id="' + w.id + '" style="color:#8A2B33">' + icon('trash') + 'Wein löschen</button></div>';
 }
+// Kurzer Suchbegriff für Shop-Suchen: Weingut + Wein, ohne Jahrgang, Anführungszeichen und doppelte Wörter
+export function shopTerm(w) {
+  const prod = String(w.producer || '').replace(/^(Weingut|Weinhaus|Domaine|Château|Chateau)\s+/i, '').trim();
+  const name = String(w.name || '').replace(/["„“”'‘’]/g, ' ').replace(/\b(19|20)\d{2}\b/g, ' ');
+  const seen = new Set(), out = [];
+  for (const t of (prod + ' ' + name).split(/\s+/)) { const k = t.toLowerCase(); if (t && !seen.has(k)) { seen.add(k); out.push(t); } }
+  return out.join(' ');
+}
+const slug = (s) => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export const SHOPS = {
+  hawesko: ['Hawesko', (t) => 'https://www.hawesko.de/suche/' + slug(t) + '?q=' + encodeURIComponent(t)],
+  rindchen: ["Rindchen's", (t) => 'https://www.rindchen.de/search?search=' + encodeURIComponent(t)],
+  vivino: ['Vivino', (t) => 'https://www.vivino.com/search/wines?q=' + encodeURIComponent(t)]
+};
+export function shopUrl(key, w) { return SHOPS[key][1](shopTerm(w)); }
+export const webUrl = (w, extra = '') => 'https://www.google.com/search?q=' + encodeURIComponent([w.producer, w.name, w.vintage, extra].filter(Boolean).join(' '));
 export function shopLinks(w) {
-  const q = [w.producer, w.name, w.vintage].filter(Boolean).join(' ');
-  const g = (site) => 'https://www.google.com/search?q=' + encodeURIComponent((site ? 'site:' + site + ' ' : '') + q);
-  return '<div class="shops">' + [['Hawesko', 'hawesko.de'], ["Rindchen's", 'rindchen.de'], ['Vivino', 'vivino.com'], ['Web', '']]
-    .map(([l, s]) => '<a class="btn ghost small" target="_blank" rel="noopener" href="' + esc(g(s)) + '">' + l + icon('ext') + '</a>').join('') + '</div>';
+  const a = (href, l) => '<a class="btn ghost small" target="_blank" rel="noopener" href="' + esc(href) + '">' + esc(l) + icon('ext') + '</a>';
+  return '<div class="shops">' + Object.keys(SHOPS).map((k) => a(shopUrl(k, w), SHOPS[k][0])).join('') + a(webUrl(w, 'Wein'), 'Web') + '</div>';
 }
 
 /* ---------- Getrunken ---------- */
@@ -304,8 +318,8 @@ export function wishView(S, D) {
   const list = D.wishlist.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   return head('Noch zu kaufen', 'Wunschliste', '<button class="ibtn" data-act="wish-new" aria-label="Wein zur Wunschliste hinzufügen">' + icon('plus') + '</button>') +
     (list.length ? '<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">' + list.map((x) => {
-      const q = [x.producer, x.name, x.vintage].filter(Boolean).join(' ');
-      const link = x.url || 'https://www.google.com/search?q=' + encodeURIComponent((x.merchant && /\./.test(x.merchant) ? 'site:' + x.merchant + ' ' : '') + q);
+      const shop = Object.keys(SHOPS).find((k) => String(x.merchant || '').toLowerCase().includes(k));
+      const link = x.url || (shop ? shopUrl(shop, x) : webUrl(x, x.merchant && !/weingut|online/i.test(x.merchant) ? x.merchant : 'Wein'));
       return '<div class="card" style="padding:14px 16px 10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font:600 17px/1.25 var(--head)">' + esc(x.name) + (x.vintage ? ' ' + esc(x.vintage) : '') + '</span>' +
         (x.price != null ? '<span style="flex:none;font:600 15px var(--head)">' + eur(x.price) + '</span>' : '') + '</div>' +
         '<div class="sub" style="font-size:13px">' + esc([x.producer, x.grape, x.region].filter(Boolean).join(' · ')) + '</div>' +
