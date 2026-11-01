@@ -343,7 +343,7 @@ export function wishSheet(D, x = {}) {
 }
 
 /* ---------- Statistik ---------- */
-export const LIST_FIELDS = { grape: ['Rebsorte', (w) => w.grape], region: ['Region', (w) => w.region], producer: ['Weingut', (w) => w.producer], type: ['Weinart', (w) => w.wine_type] };
+export const LIST_FIELDS = { grape: ['Rebsorte', (w) => w.grape], region: ['Region', (w) => w.region], producer: ['Weingut', (w) => w.producer], type: ['Weinart', (w) => w.wine_type], vintage: ['Jahrgang', (w) => (w.vintage == null ? '' : String(w.vintage))] };
 export const listHref = (field, value) => '#/liste?k=' + field + '&v=' + encodeURIComponent(value);
 function donut(parts, total, label, link) {
   const C = 2 * Math.PI * 52; let off = 0;
@@ -363,9 +363,12 @@ function hbars(rows, fmt = num, opt = {}) {
     (opt.key && rows.length > LIMIT ? '<button class="xp" data-act="expand" data-k="' + opt.key + '" aria-expanded="' + !!opt.open + '">' +
       (opt.open ? 'Weniger anzeigen' : 'Alle ' + rows.length + ' anzeigen') + icon('chev', 'i') + '</button>' : '');
 }
-function cols(rows, fmt = num) {
+function cols(rows, fmt = num, link) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
-  return '<div class="cols">' + rows.map(([k, v]) => '<div class="col"><span>' + fmt(v) + '</span><i style="height:' + Math.max(2, v / max * 80).toFixed(0) + 'px"></i></div>').join('') + '</div>' +
+  const bar = (v) => '<span>' + fmt(v) + '</span><i style="height:' + Math.max(2, v / max * 80).toFixed(0) + 'px"></i>';
+  // Mit Link: ganze Säule inkl. Beschriftung ist antippbar
+  if (link) return '<div class="cols lk">' + rows.map(([k, v]) => '<a class="col" href="' + esc(link(k)) + '" aria-label="' + esc(k + ': ' + fmt(v) + ', Weine anzeigen') + '">' + bar(v) + '<b>' + esc(k) + '</b></a>').join('') + '</div>';
+  return '<div class="cols">' + rows.map(([k, v]) => '<div class="col">' + bar(v) + '</div>').join('') + '</div>' +
     '<div class="cols-x">' + rows.map(([k]) => '<span>' + esc(k) + '</span>').join('') + '</div>';
 }
 const boxT = (title, right, inner) => '<div class="card chart" style="margin-top:12px"><div class="chart-head"><div class="eyebrow">' + esc(title) + '</div>' + right + '</div>' + inner + '</div>';
@@ -383,7 +386,7 @@ export function statsView(S, D) {
       body = box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
         box('Rebsorten im Keller', hbars(groupSum(inS, (w) => w.grape, (w) => w.stock), num, { key: 'grape', open: S.expand.has('grape'), link: (k) => listHref('grape', k) })) +
         box('Regionen', hbars(groupSum(inS, (w) => w.region, (w) => w.stock), num, { key: 'region', open: S.expand.has('region'), link: (k) => listHref('region', k) })) +
-        (vint.length ? box('Jahrgänge im Keller', cols(vint)) : '') +
+        (vint.length ? box('Jahrgänge im Keller', cols(vint, num, (k) => listHref('vintage', k))) : '') +
         box('Lagerwert nach Weingut', hbars(groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), { key: 'producer', open: S.expand.has('producer'), link: (k) => listHref('producer', k) }));
     }
   } else if (tab === 'drunk') {
