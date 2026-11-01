@@ -188,8 +188,17 @@ const actions = {
       toast('Wein gelöscht'); await load(); location.hash = S.backHref && !S.backHref.includes('/wein/') ? S.backHref : '#/regal';
     });
   },
-  async 'del-purchase'(el) { if (!confirm('Diesen Kauf löschen?')) return; await guard(async () => { await api.remove('purchases', { id: 'eq.' + el.dataset.id }); await reload(); toast('Kauf gelöscht'); }); },
-  async 'del-drink'(el) { if (!confirm('Diesen Getrunken-Eintrag löschen?')) return; await guard(async () => { await api.remove('drinks', { id: 'eq.' + el.dataset.id }); await reload(); toast('Eintrag gelöscht'); }); },
+  async 'del-purchase'(el) { if (!confirm('Diesen Kauf löschen?')) return; await guard(async () => { await api.remove('purchases', { id: 'eq.' + el.dataset.id }); closeSheet(); await reload(); toast('Kauf gelöscht'); }); },
+  async 'del-drink'(el) { if (!confirm('Diesen Getrunken-Eintrag löschen?')) return; await guard(async () => { await api.remove('drinks', { id: 'eq.' + el.dataset.id }); closeSheet(); await reload(); toast('Eintrag gelöscht'); }); },
+  'edit-drink'(el) {
+    const d = S.data.drinks.find((x) => x.id === el.dataset.id); if (!d) return;
+    S.form = { ...(S.form || {}), buyAgain: d.buy_again || null };
+    openSheet(V.drinkSheet(S, S.D.byId.get(d.wine_id), d));
+  },
+  'edit-purchase'(el) {
+    const p = S.data.purchases.find((x) => x.id === el.dataset.id); if (!p) return;
+    openSheet(V.purchaseSheet(S, S.D, S.D.byId.get(p.wine_id), p));
+  },
   'wish-new'() { openSheet(V.wishSheet(S.D)); },
   'wish-edit'(el) { openSheet(V.wishSheet(S.D, S.data.wishlist.find((x) => x.id === el.dataset.id))); },
   async 'wish-del'(el) { if (!confirm('Von der Wunschliste löschen?')) return; await guard(async () => { await api.remove('wishlist', { id: 'eq.' + el.dataset.id }); closeSheet(); await reload(); }); },
@@ -242,19 +251,25 @@ const forms = {
     });
   },
   async drink(f) {
-    const w = S.D.byId.get(f.dataset.id);
-    const qty = Math.max(1, Math.min(intOrNull(f.elements.qty.value) || 1, Math.max(1, w.stock)));
+    const w = S.D.byId.get(f.dataset.id), did = f.dataset.did;
+    const old = did ? S.data.drinks.find((x) => x.id === did) : null;
+    const max = Math.max(1, w.stock + (old ? old.qty : 0));
+    const qty = Math.max(1, Math.min(intOrNull(f.elements.qty.value) || 1, max));
+    const row = { qty, drunk_on: f.elements.drunk_on.value || null, note: txt(f.elements.note.value), occasion: txt(f.elements.occasion.value), buy_again: S.form.buyAgain || null };
     await guard(async () => {
-      await api.insert('drinks', [{ wine_id: w.id, qty, drunk_on: f.elements.drunk_on.value || null, note: txt(f.elements.note.value), occasion: txt(f.elements.occasion.value), buy_again: S.form.buyAgain || null }]);
-      closeSheet(); await reload(); toast('Zum Wohl! Eintrag gespeichert');
+      if (did) await api.patch('drinks', { id: 'eq.' + did }, row);
+      else await api.insert('drinks', [{ wine_id: w.id, ...row }]);
+      closeSheet(); await reload(); toast(did ? 'Eintrag aktualisiert' : 'Zum Wohl! Eintrag gespeichert');
     });
   },
   async purchase(f) {
     const qty = intOrNull(f.elements.qty.value);
     if (!qty || qty < 1) { toast('Bitte eine Anzahl eingeben', true); return; }
+    const row = { qty, price: numOrNull(f.elements.price.value), merchant: txt(f.elements.merchant.value), purchased_on: f.elements.purchased_on.value || null };
     await guard(async () => {
-      await api.insert('purchases', [{ wine_id: f.dataset.id, qty, price: numOrNull(f.elements.price.value), merchant: txt(f.elements.merchant.value), purchased_on: f.elements.purchased_on.value || null }]);
-      closeSheet(); await reload(); toast('Kauf gespeichert');
+      if (f.dataset.pid) await api.patch('purchases', { id: 'eq.' + f.dataset.pid }, row);
+      else await api.insert('purchases', [{ wine_id: f.dataset.id, ...row }]);
+      closeSheet(); await reload(); toast(f.dataset.pid ? 'Kauf aktualisiert' : 'Kauf gespeichert');
     });
   },
   async wish(f) {

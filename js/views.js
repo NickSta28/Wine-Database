@@ -176,10 +176,10 @@ export function detailView(S, D, w) {
     .sort((a, b) => String(b.d || '').localeCompare(String(a.d || '')));
   const ev = (e) => e.k === 'p'
     ? '<div class="ev"><span class="ico">' + icon('plus') + '</span><span class="tx"><span class="t" style="display:block">Kauf · ' + fl(e.x.qty) + (e.x.price != null ? ' à ' + eur2(e.x.price) : '') + '</span><span class="s">' + esc([deDate(e.x.purchased_on) || 'Datum unbekannt', e.x.merchant].filter(Boolean).join(' · ')) + '</span></span>' +
-      (e.x.price != null ? '<span style="font:500 14px var(--sans)">' + eur2(e.x.price * e.x.qty) + '</span>' : '') + '<button class="del" data-act="del-purchase" data-id="' + e.x.id + '" aria-label="Kauf löschen">' + icon('x') + '</button></div>'
+      (e.x.price != null ? '<span style="font:500 14px var(--sans)">' + eur2(e.x.price * e.x.qty) + '</span>' : '') + '<button class="del" data-act="edit-purchase" data-id="' + e.x.id + '" aria-label="Kauf bearbeiten">' + icon('edit') + '</button></div>'
     : '<div class="ev"><span class="ico dr">' + icon('glass') + '</span><span class="tx"><span class="t" style="display:block">Getrunken' + (e.x.qty > 1 ? ' · ' + fl(e.x.qty) : '') + (e.x.buy_again ? ' · nochmal kaufen: ' + BUY_AGAIN.find((y) => y[0] === e.x.buy_again)[1] : '') + '</span>' +
       '<span class="s">' + esc([deDate(e.x.drunk_on) || 'Datum unbekannt', e.x.occasion].filter(Boolean).join(' · ')) + '</span>' + (e.x.note ? '<span class="n" style="display:block">„' + esc(e.x.note) + '“</span>' : '') + '</span>' +
-      '<button class="del" data-act="del-drink" data-id="' + e.x.id + '" aria-label="Eintrag löschen">' + icon('x') + '</button></div>';
+      '<button class="del" data-act="edit-drink" data-id="' + e.x.id + '" aria-label="Getrunken-Eintrag bearbeiten">' + icon('edit') + '</button></div>';
   const url = w.label_path && S.urls[w.label_path];
   return '<div style="display:flex;justify-content:space-between;align-items:center">' + backBtn(S.backHref || '#/regal', S.backLabel || 'Zurück') +
     '<button class="ibtn" data-act="edit-wine" data-id="' + w.id + '" aria-label="Wein bearbeiten" style="margin-top:-8px">' + icon('edit') + '</button></div>' +
@@ -225,9 +225,10 @@ export function drunkView(S, D) {
     '<div class="kpis"><div class="kpi dark"><div class="l">Flaschen</div><div class="v">' + num(t.drunk) + '</div></div><div class="kpi"><div class="l">Genossen für</div><div class="v">' + eur(t.drunkValue, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + num(t.again) + '×</div></div></div>' +
     '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + '</div>' +
     (items.length ? shown.g.map((g) => '<div class="year"><b>' + esc(g.y) + '</b><i></i></div>' + g.items.map(({ w, d }) =>
-      '<a class="mem" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
+      '<div class="mem"><a class="go" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
       '<span class="w">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape].filter(Boolean).join(' · ')) + '</span>' +
-      (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">Anlass: ' + esc(d.occasion) + '</span>' : '') + '</span></a>').join('')).join('') +
+      (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">Anlass: ' + esc(d.occasion) + '</span>' : '') + '</span></a>' +
+      '<button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button></div>').join('')).join('') +
       (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '')
       : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>');
 }
@@ -274,23 +275,28 @@ export function editSheet(S, D, w) {
     '<div class="sec">Eigene Notiz</div><div class="field"><label for="my_note">allgemein zum Wein</label><textarea id="my_note" name="my_note" rows="2">' + esc(w.my_note || '') + '</textarea></div>' +
     '<div class="btns"><button type="button" class="btn ghost" data-act="close">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
 }
-export function drinkSheet(S, w) {
+// d = vorhandener Eintrag (Bearbeiten) oder null (neu)
+export function drinkSheet(S, w, d = null) {
   const sel = S.form.buyAgain;
-  return '<h2>Flasche getrunken</h2><p class="sub" style="margin:-6px 0 14px">' + esc([w.name, w.producer, w.vintage].filter(Boolean).join(' · ')) + '</p>' +
-    '<form data-form="drink" data-id="' + w.id + '" novalidate><div class="fgrid"><div class="frow">' + fld('drunk_on', 'Datum', 'type="date"', today()) +
-    '<div class="field" style="flex:0 0 104px"><label for="dqty">Flaschen</label><input id="dqty" name="qty" type="number" inputmode="numeric" min="1" max="' + Math.max(1, w.stock) + '" value="1"></div></div>' +
-    '<div class="field"><label for="note">Meine Notiz</label><textarea id="note" name="note" rows="3" placeholder="Wie war er? Aromen, Begleitung, Eindruck …"></textarea></div>' +
-    fld('occasion', 'Anlass (optional)', 'autocomplete="off" placeholder="z. B. Geburtstag, Essen mit Freunden"') + '</div>' +
+  const max = Math.max(1, w.stock + (d ? d.qty : 0));
+  return '<h2>' + (d ? 'Getrunken bearbeiten' : 'Flasche getrunken') + '</h2><p class="sub" style="margin:-6px 0 14px">' + esc([w.name, w.producer, w.vintage].filter(Boolean).join(' · ')) + '</p>' +
+    '<form data-form="drink" data-id="' + w.id + '"' + (d ? ' data-did="' + d.id + '"' : '') + ' novalidate><div class="fgrid"><div class="frow">' + fld('drunk_on', 'Datum', 'type="date"', d ? (d.drunk_on || '') : today()) +
+    '<div class="field" style="flex:0 0 104px"><label for="dqty">Flaschen</label><input id="dqty" name="qty" type="number" inputmode="numeric" min="1" max="' + max + '" value="' + (d ? d.qty : 1) + '"></div></div>' +
+    '<div class="field"><label for="note">Meine Notiz</label><textarea id="note" name="note" rows="3" placeholder="Wie war er? Aromen, Begleitung, Eindruck …">' + esc(d ? d.note || '' : '') + '</textarea></div>' +
+    fld('occasion', 'Anlass (optional)', 'autocomplete="off" placeholder="z. B. Geburtstag, Essen mit Freunden"', d ? d.occasion : '') + '</div>' +
     '<div class="sec">Würdest du ihn nochmal kaufen?</div><div class="opts" role="group" aria-label="Nochmal kaufen">' +
     BUY_AGAIN.map(([k, l]) => '<button type="button" data-act="buy-again" data-k="' + k + '" aria-pressed="' + (sel === k) + '">' + l + '</button>').join('') + '</div>' +
-    '<div class="btns" style="margin-top:20px"><button type="button" class="btn ghost" data-act="close">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    '<div class="btns" style="margin-top:20px">' + (d ? '<button type="button" class="btn ghost" data-act="del-drink" data-id="' + d.id + '" style="color:#8A2B33">Löschen</button>' : '<button type="button" class="btn ghost" data-act="close">Abbrechen</button>') +
+    '<button class="btn" type="submit">Speichern</button></div></form>';
 }
-export function purchaseSheet(S, D, w) {
-  return '<h2>Kauf erfassen</h2><p class="sub" style="margin:-6px 0 14px">' + esc([w.name, w.producer].filter(Boolean).join(' · ')) + '</p>' + datalists(D) +
-    '<form data-form="purchase" data-id="' + w.id + '" novalidate><div class="fgrid"><div class="frow">' + fld('qty', 'Anzahl', 'type="number" inputmode="numeric" min="1" max="999"', 1) +
-    fld('price', 'Preis / Fl. (€)', 'type="text" inputmode="decimal" autocomplete="off"', w.avgPrice != null ? String(Math.round(w.avgPrice * 100) / 100).replace('.', ',') : '') + '</div>' +
-    '<div class="frow">' + fld('merchant', 'Bezogen über', 'list="dl-merch" autocomplete="off"', w.merchants[0] || '') + fld('purchased_on', 'Kaufdatum', 'type="date"', today()) + '</div></div>' +
-    '<div class="btns" style="margin-top:20px"><button type="button" class="btn ghost" data-act="close">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+export function purchaseSheet(S, D, w, p = null) {
+  const price = p ? p.price : w.avgPrice != null ? Math.round(w.avgPrice * 100) / 100 : null;
+  return '<h2>' + (p ? 'Kauf bearbeiten' : 'Kauf erfassen') + '</h2><p class="sub" style="margin:-6px 0 14px">' + esc([w.name, w.producer].filter(Boolean).join(' · ')) + '</p>' + datalists(D) +
+    '<form data-form="purchase" data-id="' + w.id + '"' + (p ? ' data-pid="' + p.id + '"' : '') + ' novalidate><div class="fgrid"><div class="frow">' + fld('qty', 'Anzahl', 'type="number" inputmode="numeric" min="1" max="999"', p ? p.qty : 1) +
+    fld('price', 'Preis / Fl. (€)', 'type="text" inputmode="decimal" autocomplete="off"', price != null ? String(price).replace('.', ',') : '') + '</div>' +
+    '<div class="frow">' + fld('merchant', 'Bezogen über', 'list="dl-merch" autocomplete="off"', p ? p.merchant : (w.merchants[0] || '')) + fld('purchased_on', 'Kaufdatum', 'type="date"', p ? (p.purchased_on || '') : today()) + '</div></div>' +
+    '<div class="btns" style="margin-top:20px">' + (p ? '<button type="button" class="btn ghost" data-act="del-purchase" data-id="' + p.id + '" style="color:#8A2B33">Löschen</button>' : '<button type="button" class="btn ghost" data-act="close">Abbrechen</button>') +
+    '<button class="btn" type="submit">Speichern</button></div></form>';
 }
 
 /* ---------- Wunschliste ---------- */

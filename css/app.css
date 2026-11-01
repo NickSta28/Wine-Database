@@ -151,6 +151,9 @@ svg.i{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke
 .year b{font:600 22px var(--head)}
 .year i{flex:1;height:1px;background:#DCD2C2}
 .mem{display:flex;gap:12px;padding:10px;border-radius:16px;background:var(--card);border:1px solid var(--line);width:100%;text-align:left;margin-bottom:8px}
+.mem .go{display:flex;gap:12px;flex:1;min-width:0}
+.mem .ed{flex:none;align-self:flex-start;width:40px;height:40px;margin:-4px -4px 0 0;border:0;border-radius:50%;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.mem .ed svg{width:18px;height:18px}
 .mem .th{flex:none;width:64px;height:84px;border-radius:6px;background:var(--pale);object-fit:cover;box-shadow:0 1px 3px rgba(40,20,5,.18);display:flex;align-items:center;justify-content:center}
 .mem .tx{flex:1;min-width:0;display:flex;flex-direction:column}
 .mem .d{font:500 12px var(--sans);color:var(--muted)}
