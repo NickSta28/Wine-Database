@@ -140,19 +140,23 @@ export function hintText(D, q) {
   return 'Gold = Treffer für „' + q.trim() + '“ · Zahl = Treffer von allen Weinen im Fach';
 }
 // mode: true/'stock' = Bestand rechts, 'drunk' = getrunkene Flaschen, 'bought' = gekaufte Flaschen
-function wineRow(w, mode) {
+function wineRow(w, mode, date) {
   const right = mode === 'drunk' ? w.drunk + '× getr.' : mode === 'bought' ? fl(w.bought) + ' gek.' : (w.stock ? fl(w.stock) : '<span style="color:var(--muted)">leer</span>');
   return '<a class="row" href="#/wein/' + w.id + '">' + cap(capOf(w), 's28') +
-    '<span class="tx"><span class="t">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape, w.vintage, w.region].filter(Boolean).join(' · ')) + '</span></span>' +
+    '<span class="tx"><span class="t">' + esc(w.name) + '</span><span class="s">' + esc([date ? deDate(date) : '', w.producer, w.grape, w.vintage, w.region].filter(Boolean).join(' · ')) + '</span></span>' +
     (mode ? '<span class="r">' + right + '</span>' : '') + icon('chev', 'i chev') + '</a>';
 }
 
 /* ---------- Fach / Trefferliste ---------- */
-// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought' }
+// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought', year }
+// Bei getrunken/gekauft: Standard-Sortierung nach Datum, zuletzt getrunkener/gekaufter Wein zuerst
 export function fachView(S, D, name, list, opts = {}) {
   const o = { eyebrow: 'Fach', back: ['#/regal', 'Weinregal'], mini: true, scope: 'stock', ...opts };
-  const firstSort = o.scope === 'drunk' ? ['Getrunken', (a, b) => b.drunk - a.drunk || a.name.localeCompare(b.name)]
-    : o.scope === 'bought' ? ['Gekauft', (a, b) => b.bought - a.bought || a.name.localeCompare(b.name)]
+  const inYear = (d) => d && (!o.year || String(d).startsWith(o.year));
+  const dateOf = o.scope === 'drunk' ? (w) => (w.drinks.find((d) => inYear(d.drunk_on)) || {}).drunk_on || null
+    : o.scope === 'bought' ? (w) => (w.purchases.find((p) => inYear(p.purchased_on)) || {}).purchased_on || null : () => null;
+  const byDate = (a, b) => String(dateOf(b) || '').localeCompare(String(dateOf(a) || '')) || a.name.localeCompare(b.name);
+  const firstSort = o.scope === 'drunk' ? ['Zuletzt getrunken', byDate] : o.scope === 'bought' ? ['Zuletzt gekauft', byDate]
     : ['Bestand', (a, b) => b.stock - a.stock || a.name.localeCompare(b.name)];
   const sorters = { stock: firstSort, producer: ['Weingut', (a, b) => a.producer.localeCompare(b.producer) || a.name.localeCompare(b.name)], vintage: ['Jahrgang', (a, b) => (b.vintage || 0) - (a.vintage || 0)], region: ['Region', (a, b) => String(a.region || '').localeCompare(String(b.region || ''))] };
   const sorted = list.slice().sort(sorters[S.fachSort] ? sorters[S.fachSort][1] : sorters.stock[1]);
@@ -170,7 +174,7 @@ export function fachView(S, D, name, list, opts = {}) {
       : '<div class="kpi"><div class="l">' + (o.scope === 'drunk' ? 'Getrunken' : 'Gekauft') + '</div><div class="v">' + fl(list.reduce((s, w) => s + (o.scope === 'drunk' ? w.drunk : w.bought), 0)) + '</div></div><div class="kpi"><div class="l">Noch im Keller</div><div class="v">' + fl(b) + '</div></div>') + '</div>' +
     '<div class="chips" style="margin-top:16px">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
     (list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
-      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, o.scope)).join('') + '</div>'
+      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, o.scope, dateOf(w))).join('') + '</div>'
       : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
       : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
 }

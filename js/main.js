@@ -65,6 +65,8 @@ function onRoute() {
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
   if (S.form) S.form.keep = false;
   if (r.name === 'drunk' && prev.name !== 'drunk') S.drunkLimit = 40;
+  // Neue Liste: Standard-Sortierung (Bestand bzw. Datum); beim Zurückkommen vom Wein bleibt die Wahl
+  if (['fach', 'list', 'search'].includes(r.name) && prev.name !== 'wine') S.fachSort = 'stock';
   S.route = r; S.prevHash = location.hash || '#/';
   closeSheet();
   render(true);
@@ -86,7 +88,7 @@ function render(top) {
     const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
     const inScope = scope === 'drunk' ? (w) => w.drunk > 0 : scope === 'bought' ? (w) => w.bought > 0 : (w) => w.stock > 0;
     const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
-    html = V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope });
+    html = V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '' });
     tab = 'stats';
   }
   else if (r.name === 'wine') { const w = D.byId.get(r.arg); html = w ? V.detailView(S, D, w) : '<div class="empty"><b>Wein nicht gefunden</b></div>'; }
