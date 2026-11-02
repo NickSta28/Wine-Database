@@ -105,13 +105,13 @@ export function chipsHtml(top, recent, q) {
 }
 // Kapsel-Stapel eines Fachs (Regal und Mini-Fach nutzen dieselbe Darstellung).
 // items: [{ w, hit }] in Reihenfolge der Priorität – die ersten liegen unten vorne.
-export function stackHtml(items, capCls = '') {
+export function stackHtml(items, capCls = '', colorOf = tintOf) {
   const L = layout(items.length), shown = [];
   L.rows.forEach((k) => { for (let j = 0; j < k; j++) shown.push(items[shown.length]); });
   const rows = []; let p = 0;
   for (let r = L.rows.length - 1; r >= 0; r--) {
     const caps = [];
-    for (let j = 0; j < L.rows[r]; j++) { const x = shown[p++]; caps.unshift(cap(tintOf(x.w), capCls, x.hit)); }
+    for (let j = 0; j < L.rows[r]; j++) { const x = shown[p++]; caps.unshift(cap(colorOf(x.w), capCls, x.hit)); }
     rows.unshift('<div class="lr' + (L.stacked ? ' st' : '') + '">' + caps.join('') + '</div>');
   }
   return rows.join('');
@@ -168,8 +168,8 @@ export function fachView(S, D, name, list, opts = {}) {
   const sorted = list.slice().sort(sorters[S.fachSort] ? sorters[S.fachSort][1] : sorters.stock[1]);
   const b = list.reduce((s, w) => s + w.stock, 0), v = list.reduce((s, w) => s + w.value, 0);
   const nProd = new Set(list.map((w) => w.producer).filter(Boolean)).size, nReg = new Set(list.map((w) => w.region).filter(Boolean)).size;
-  // Mini-Fach: exakt wie im Regal (gleiche Stufe, Reihenfolge und Kapselfarben)
-  const mini = o.mini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20') : '';
+  // Mini-Fach: gleiche Stufe und Reihenfolge wie im Regal, Kapselfarben je Weingut
+  const mini = o.mini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20', capOf) : '';
   return backBtn(o.back[0], o.back[1]) +
     '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +
