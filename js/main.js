@@ -82,8 +82,11 @@ function render(top) {
   else if (r.name === 'fach') html = V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
   else if (r.name === 'search') { const m = matcher(S.q); html = V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false }); }
   else if (r.name === 'list') {
-    const f = V.LIST_FIELDS[r.params.get('k')] || V.LIST_FIELDS.grape, v = r.params.get('v') || '';
-    html = V.fachView(S, D, v, D.wines.filter((w) => w.stock > 0 && f[1](w) === v), { eyebrow: f[0] + ' im Keller', back: ['#/statistik', 'Statistik'], mini: false });
+    const k = V.LIST_FIELDS[r.params.get('k')] ? r.params.get('k') : 'grape', f = V.LIST_FIELDS[k], v = r.params.get('v') || '';
+    const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
+    const inScope = scope === 'drunk' ? (w) => w.drunk > 0 : scope === 'bought' ? (w) => w.bought > 0 : (w) => w.stock > 0;
+    const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
+    html = V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope });
     tab = 'stats';
   }
   else if (r.name === 'wine') { const w = D.byId.get(r.arg); html = w ? V.detailView(S, D, w) : '<div class="empty"><b>Wein nicht gefunden</b></div>'; }
@@ -178,7 +181,7 @@ const actions = {
   'drunk-filter'(el) { S.drunkFilter = el.dataset.k; S.drunkLimit = 40; render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
-  'buy-metric'(el) { S.buyMetric = el.dataset.k; render(); },
+  metric(el) { S.metric = { ...(S.metric || {}), [el.dataset.g]: el.dataset.k }; render(); },
   expand(el) { const k = el.dataset.k; if (S.expand.has(k)) S.expand.delete(k); else S.expand.add(k); render(); },
   cap(el) { if (!S.form) S.form = blankForm(); S.form.cap = el.dataset.c || ''; $$('.sw').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); },
   'buy-again'(el) { const k = el.dataset.k; S.form.buyAgain = S.form.buyAgain === k ? null : k; $$('.opts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.buyAgain))); },

@@ -139,17 +139,22 @@ export function hintText(D, q) {
   if (!m) return D.wines.some((w) => w.stock > 0) ? 'Jede Kapsel ist ein Wein · Zahl = alle Weine im Fach. Die Suche umfasst Wein, Weingut, Rebsorte, Weinart, Geschmack, Region, Jahrgang und Händler.' : 'Noch keine Weine im Regal.';
   return 'Gold = Treffer für „' + q.trim() + '“ · Zahl = Treffer von allen Weinen im Fach';
 }
-function wineRow(w, showStock) {
+// mode: true/'stock' = Bestand rechts, 'drunk' = getrunkene Flaschen, 'bought' = gekaufte Flaschen
+function wineRow(w, mode) {
+  const right = mode === 'drunk' ? w.drunk + '× getr.' : mode === 'bought' ? fl(w.bought) + ' gek.' : (w.stock ? fl(w.stock) : '<span style="color:var(--muted)">leer</span>');
   return '<a class="row" href="#/wein/' + w.id + '">' + cap(capOf(w), 's28') +
     '<span class="tx"><span class="t">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape, w.vintage, w.region].filter(Boolean).join(' · ')) + '</span></span>' +
-    (showStock ? '<span class="r">' + (w.stock ? fl(w.stock) : '<span style="color:var(--muted)">leer</span>') + '</span>' : '') + icon('chev', 'i chev') + '</a>';
+    (mode ? '<span class="r">' + right + '</span>' : '') + icon('chev', 'i chev') + '</a>';
 }
 
 /* ---------- Fach / Trefferliste ---------- */
-// opts: { eyebrow, back: [href, label], mini }
+// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought' }
 export function fachView(S, D, name, list, opts = {}) {
-  const o = { eyebrow: 'Fach', back: ['#/regal', 'Weinregal'], mini: true, ...opts };
-  const sorters = { stock: ['Bestand', (a, b) => b.stock - a.stock || a.name.localeCompare(b.name)], producer: ['Weingut', (a, b) => a.producer.localeCompare(b.producer) || a.name.localeCompare(b.name)], vintage: ['Jahrgang', (a, b) => (b.vintage || 0) - (a.vintage || 0)], region: ['Region', (a, b) => String(a.region || '').localeCompare(String(b.region || ''))] };
+  const o = { eyebrow: 'Fach', back: ['#/regal', 'Weinregal'], mini: true, scope: 'stock', ...opts };
+  const firstSort = o.scope === 'drunk' ? ['Getrunken', (a, b) => b.drunk - a.drunk || a.name.localeCompare(b.name)]
+    : o.scope === 'bought' ? ['Gekauft', (a, b) => b.bought - a.bought || a.name.localeCompare(b.name)]
+    : ['Bestand', (a, b) => b.stock - a.stock || a.name.localeCompare(b.name)];
+  const sorters = { stock: firstSort, producer: ['Weingut', (a, b) => a.producer.localeCompare(b.producer) || a.name.localeCompare(b.name)], vintage: ['Jahrgang', (a, b) => (b.vintage || 0) - (a.vintage || 0)], region: ['Region', (a, b) => String(a.region || '').localeCompare(String(b.region || ''))] };
   const sorted = list.slice().sort(sorters[S.fachSort] ? sorters[S.fachSort][1] : sorters.stock[1]);
   const b = list.reduce((s, w) => s + w.stock, 0), v = list.reduce((s, w) => s + w.value, 0);
   const nProd = new Set(list.map((w) => w.producer).filter(Boolean)).size, nReg = new Set(list.map((w) => w.region).filter(Boolean)).size;
@@ -159,10 +164,14 @@ export function fachView(S, D, name, list, opts = {}) {
     '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +
     (o.mini ? '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>' : '') + '</div>' +
-    '<div class="kpis"><div class="kpi dark"><div class="l">Weine</div><div class="v">' + num(list.length) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(b) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(v, 0) + '</div></div></div>' +
+    '<div class="kpis"><div class="kpi dark"><div class="l">Weine</div><div class="v">' + num(list.length) + '</div></div>' +
+    (o.scope === 'stock'
+      ? '<div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(b) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(v, 0) + '</div></div>'
+      : '<div class="kpi"><div class="l">' + (o.scope === 'drunk' ? 'Getrunken' : 'Gekauft') + '</div><div class="v">' + fl(list.reduce((s, w) => s + (o.scope === 'drunk' ? w.drunk : w.bought), 0)) + '</div></div><div class="kpi"><div class="l">Noch im Keller</div><div class="v">' + fl(b) + '</div></div>') + '</div>' +
     '<div class="chips" style="margin-top:16px">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
     (list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
-      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, true)).join('') + '</div>'
+      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, o.scope)).join('') + '</div>'
+      : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
       : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
 }
 
@@ -214,6 +223,7 @@ const slug = (s) => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').re
 export const SHOPS = {
   hawesko: ['Hawesko', (t) => 'https://www.hawesko.de/suche/' + slug(t) + '?q=' + encodeURIComponent(t), /hawesko/i],
   rindchen: ["Rindchen's", (t) => 'https://www.rindchen.de/search?search=' + encodeURIComponent(t), /rindchen/i],
+  dallmayr: ['Dallmayr', (t) => 'https://www.dallmayr.com/de/suche?q=' + encodeURIComponent(t), /dallmayr/i],
   moevenpick: ['Mövenpick', (t) => 'https://www.moevenpick-wein.de/catalogsearch/result/?q=' + encodeURIComponent(t), /m(ö|oe|o)venpick/i],
   vivino: ['Vivino', (t) => 'https://www.vivino.com/search/wines?q=' + encodeURIComponent(t), /vivino/i]
 };
@@ -346,8 +356,18 @@ export function wishSheet(D, x = {}) {
 }
 
 /* ---------- Statistik ---------- */
-export const LIST_FIELDS = { grape: ['Rebsorte', (w) => w.grape], region: ['Region', (w) => w.region], producer: ['Weingut', (w) => w.producer], type: ['Weinart', (w) => w.wine_type], vintage: ['Jahrgang', (w) => (w.vintage == null ? '' : String(w.vintage))] };
-export const listHref = (field, value) => '#/liste?k=' + field + '&v=' + encodeURIComponent(value);
+// Felder für die Weinliste aus der Statistik; Funktionen liefern einen Wert oder eine Liste von Werten
+const BA_LABEL = Object.fromEntries(BUY_AGAIN);
+export const LIST_FIELDS = {
+  grape: ['Rebsorte', (w) => w.grape], region: ['Region', (w) => w.region], producer: ['Weingut', (w) => w.producer],
+  type: ['Weinart', (w) => w.wine_type], vintage: ['Jahrgang', (w) => (w.vintage == null ? '' : String(w.vintage))],
+  merchant: ['Händler', (w) => w.merchants],
+  dyear: ['Getrunken im Jahr', (w) => w.drinks.map((d) => yearOf(d.drunk_on)).filter(Boolean)],
+  byear: ['Gekauft im Jahr', (w) => w.purchases.map((p) => yearOf(p.purchased_on)).filter(Boolean)],
+  again: ['Nochmal kaufen', (w) => w.drinks.map((d) => BA_LABEL[d.buy_again]).filter(Boolean)]
+};
+export const listMatch = (field, v) => (w) => { const x = LIST_FIELDS[field][1](w); return Array.isArray(x) ? x.includes(v) : x === v; };
+export const listHref = (field, value, scope) => '#/liste?k=' + field + '&v=' + encodeURIComponent(value) + (scope ? '&s=' + scope : '');
 function donut(parts, total, label, link) {
   const C = 2 * Math.PI * 52; let off = 0;
   const segs = parts.map(([k, v, col]) => { const len = v / total * C; const s = '<circle cx="70" cy="70" r="52" fill="none" stroke="' + col + '" stroke-width="20" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"/>'; off += len; return s; }).join('');
@@ -355,9 +375,10 @@ function donut(parts, total, label, link) {
   return '<div class="donut"><div class="c"><svg width="128" height="128" viewBox="0 0 140 140" role="img" aria-label="' + esc(parts.map(([k, v]) => k + ' ' + v).join(', ')) + '" style="transform:rotate(-90deg)">' + segs + '</svg><div><b>' + num(total) + '</b><span>' + label + '</span></div></div>' +
     '<div class="lg">' + parts.map(([k, v, col]) => link ? '<a href="' + esc(link(k)) + '">' + item(k, v, col) + icon('chev', 'i hchev') + '</a>' : '<div>' + item(k, v, col) + '</div>').join('') + '</div></div>';
 }
-// opt: { key, open, link } – key/open: aufklappbar ab 7 Einträgen, link: Balken führt zur Weinliste
+// opt: { key, open, link } – key/open: aufklappbar ab 6 Einträgen, link: Balken führt zur Weinliste
+const TOP_N = 5;
 function hbars(rows, fmt = num, opt = {}) {
-  const LIMIT = 6, max = Math.max(1, ...rows.map((r) => r[1]));
+  const LIMIT = TOP_N, max = Math.max(1, ...rows.map((r) => r[1]));
   const shown = opt.key && !opt.open ? rows.slice(0, LIMIT) : rows;
   const inner = (k, v) => '<span class="n">' + esc(k) + '</span><span class="tr"><i style="width:' + (v / max * 100).toFixed(1) + '%"></i></span><span class="v">' + fmt(v) + '</span>';
   return '<div class="hbars">' + shown.map(([k, v]) => opt.link
@@ -375,6 +396,15 @@ function cols(rows, fmt = num, link) {
     '<div class="cols-x">' + rows.map(([k]) => '<span>' + esc(k) + '</span>').join('') + '</div>';
 }
 const boxT = (title, right, inner) => '<div class="card chart" style="margin-top:12px"><div class="chart-head"><div class="eyebrow">' + esc(title) + '</div>' + right + '</div>' + inner + '</div>';
+// Balken-Box: „Top-5 …“ solange zugeklappt und mehr als 5 Einträge, sonst Titel ohne Zusatz
+function barBox(S, title, rows, fmt, key, link, right = '') {
+  const open = S.expand.has(key);
+  return boxT((!open && rows.length > TOP_N ? 'Top-5 ' : '') + title, right, hbars(rows, fmt, { key, open, link }));
+}
+function metricSeg(S, g) {
+  const cur = (S.metric || {})[g] || 'eur';
+  return '<div class="mseg" role="group" aria-label="Einheit">' + [['eur', 'Euro'], ['qty', 'Flaschen']].map(([k, l]) => '<button data-act="metric" data-g="' + g + '" data-k="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>').join('') + '</div>';
+}
 const box = (title, inner) => '<div class="card chart" style="margin-top:12px"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">' + esc(title) + '</div>' + inner + '</div>';
 export function statsView(S, D) {
   const tab = S.statTab;
@@ -386,11 +416,18 @@ export function statsView(S, D) {
     else {
       const parts = Object.entries(t.byType).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v, TYPE_COLOR[k]]);
       const vint = groupSum(inS, (w) => w.vintage, (w) => w.stock).sort((a, b) => a[0] - b[0]).slice(-8);
+      // Bestand je Händler: Restbestand eines Weins anteilig auf seine Käufe verteilt
+      const sEur = ((S.metric || {}).stock || 'eur') === 'eur';
+      const alloc = inS.flatMap((w) => {
+        const tot = w.purchases.reduce((s, p) => s + p.qty, 0) || 1;
+        return w.purchases.map((p) => { const fl2 = w.stock * p.qty / tot; return { m: p.merchant, fl: fl2, eur: fl2 * (p.price != null ? Number(p.price) : (w.avgPrice || 0)) }; });
+      });
       body = box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
-        box('Rebsorten im Keller', hbars(groupSum(inS, (w) => w.grape, (w) => w.stock), num, { key: 'grape', open: S.expand.has('grape'), link: (k) => listHref('grape', k) })) +
-        box('Regionen', hbars(groupSum(inS, (w) => w.region, (w) => w.stock), num, { key: 'region', open: S.expand.has('region'), link: (k) => listHref('region', k) })) +
+        barBox(S, 'Rebsorten im Keller', groupSum(inS, (w) => w.grape, (w) => w.stock), num, 'grape', (k) => listHref('grape', k)) +
+        barBox(S, 'Regionen', groupSum(inS, (w) => w.region, (w) => w.stock), num, 'region', (k) => listHref('region', k)) +
         (vint.length ? box('Jahrgänge im Keller', cols(vint, num, (k) => listHref('vintage', k))) : '') +
-        box('Lagerwert nach Weingut', hbars(groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), { key: 'producer', open: S.expand.has('producer'), link: (k) => listHref('producer', k) }));
+        barBox(S, 'Weingüter nach Lagerwert', groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), 'producer', (k) => listHref('producer', k)) +
+        barBox(S, 'Händler im Bestand', groupSum(alloc, (x) => x.m, (x) => (sEur ? x.eur : x.fl)), sEur ? (v) => eur(v, 0) : num, 'smerch', (k) => listHref('merchant', k), metricSeg(S, 'stock'));
     }
   } else if (tab === 'drunk') {
     const items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
@@ -398,24 +435,23 @@ export function statsView(S, D) {
     else {
       const years = groupSum(items.filter((x) => x.d.drunk_on), (x) => yearOf(x.d.drunk_on), (x) => x.d.qty).sort((a, b) => a[0] - b[0]).slice(-8);
       const ba = BUY_AGAIN.map(([k, l]) => [l, items.filter((x) => x.d.buy_again === k).length]).filter((x) => x[1]);
-      const fav = groupSum(items.filter((x) => x.d.buy_again === 'ja'), (x) => x.w.producer, () => 1).slice(0, 6);
-      body = (years.length ? box('Flaschen pro Jahr', cols(years)) : '') +
-        box('Meistgetrunkene Rebsorten', hbars(groupSum(items, (x) => x.w.grape, (x) => x.d.qty), num, { key: 'dgrape', open: S.expand.has('dgrape') })) +
-        (fav.length ? box('Lieblings-Weingüter (nochmal kaufen: ja)', hbars(fav, num, { key: 'fav', open: S.expand.has('fav') })) : '') +
-        (ba.length ? box('Nochmal kaufen?', hbars(ba)) : '');
+      const fav = groupSum(items.filter((x) => x.d.buy_again === 'ja'), (x) => x.w.producer, () => 1);
+      body = (years.length ? box('Flaschen pro Jahr', cols(years, num, (k) => listHref('dyear', k, 'drunk'))) : '') +
+        barBox(S, 'Getrunkene Rebsorten', groupSum(items, (x) => x.w.grape, (x) => x.d.qty), num, 'dgrape', (k) => listHref('grape', k, 'drunk')) +
+        (fav.length ? barBox(S, 'Lieblings-Weingüter (nochmal kaufen: ja)', fav, num, 'fav', (k) => listHref('producer', k, 'drunk')) : '') +
+        (ba.length ? barBox(S, 'Nochmal kaufen?', ba, num, 'again', (k) => listHref('again', k, 'drunk')) : '');
     }
   } else {
     const ps = D.wines.flatMap((w) => w.purchases.map((p) => ({ w, p })));
     if (!ps.length) body = '<div class="empty"><b>Noch keine Käufe</b></div>';
     else {
       const val = (x) => (x.p.price != null ? x.p.qty * Number(x.p.price) : 0);
-      const eurM = S.buyMetric !== 'qty';
+      const eurM = ((S.metric || {}).buy || 'eur') === 'eur';
       const mval = eurM ? val : (x) => x.p.qty, mfmt = eurM ? (v) => eur(v, 0) : num;
-      const metricSeg = '<div class="mseg" role="group" aria-label="Einheit">' + [['eur', 'Euro'], ['qty', 'Flaschen']].map(([k, l]) => '<button data-act="buy-metric" data-k="' + k + '" aria-pressed="' + ((k === 'eur') === eurM) + '">' + l + '</button>').join('') + '</div>';
       const spent = ps.reduce((s, x) => s + val(x), 0), bottles = ps.reduce((s, x) => s + x.p.qty, 0), priced = ps.filter((x) => x.p.price != null).reduce((s, x) => s + x.p.qty, 0);
       body = '<div class="kpis"><div class="kpi dark"><div class="l">Ausgegeben</div><div class="v">' + eur(spent, 0) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(bottles) + '</div></div><div class="kpi"><div class="l">Ø je Flasche</div><div class="v">' + eur2(priced ? spent / priced : 0) + '</div></div></div>' +
-        boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg, cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt)) +
-        boxT('Händler', metricSeg, hbars(groupSum(ps, (x) => x.p.merchant, mval), mfmt, { key: 'merch', open: S.expand.has('merch') }));
+        boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg(S, 'buy'), cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt, (k) => listHref('byear', k, 'bought'))) +
+        barBox(S, 'Händler', groupSum(ps, (x) => x.p.merchant, mval), mfmt, 'merch', (k) => listHref('merchant', k, 'bought'), metricSeg(S, 'buy'));
     }
   }
   return head('Keller in Zahlen', 'Statistik') + seg + body;
