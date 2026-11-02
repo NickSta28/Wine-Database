@@ -210,11 +210,14 @@ export function shopTerm(w) {
   return out.join(' ');
 }
 const slug = (s) => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+// [Beschriftung, Such-URL, Erkennung im Händlernamen]
 export const SHOPS = {
-  hawesko: ['Hawesko', (t) => 'https://www.hawesko.de/suche/' + slug(t) + '?q=' + encodeURIComponent(t)],
-  rindchen: ["Rindchen's", (t) => 'https://www.rindchen.de/search?search=' + encodeURIComponent(t)],
-  vivino: ['Vivino', (t) => 'https://www.vivino.com/search/wines?q=' + encodeURIComponent(t)]
+  hawesko: ['Hawesko', (t) => 'https://www.hawesko.de/suche/' + slug(t) + '?q=' + encodeURIComponent(t), /hawesko/i],
+  rindchen: ["Rindchen's", (t) => 'https://www.rindchen.de/search?search=' + encodeURIComponent(t), /rindchen/i],
+  moevenpick: ['Mövenpick', (t) => 'https://www.moevenpick-wein.de/catalogsearch/result/?q=' + encodeURIComponent(t), /m(ö|oe|o)venpick/i],
+  vivino: ['Vivino', (t) => 'https://www.vivino.com/search/wines?q=' + encodeURIComponent(t), /vivino/i]
 };
+export const shopFor = (merchant) => Object.keys(SHOPS).find((k) => SHOPS[k][2].test(String(merchant || '')));
 export function shopUrl(key, w) { return SHOPS[key][1](shopTerm(w)); }
 export const webUrl = (w, extra = '') => 'https://www.google.com/search?q=' + encodeURIComponent([w.producer, w.name, w.vintage, extra].filter(Boolean).join(' '));
 export function shopLinks(w) {
@@ -320,7 +323,7 @@ export function wishView(S, D) {
   const list = D.wishlist.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   return head('Noch zu kaufen', 'Wunschliste', '<button class="ibtn" data-act="wish-new" aria-label="Wein zur Wunschliste hinzufügen">' + icon('plus') + '</button>') +
     (list.length ? '<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">' + list.map((x) => {
-      const shop = Object.keys(SHOPS).find((k) => String(x.merchant || '').toLowerCase().includes(k));
+      const shop = shopFor(x.merchant);
       const link = x.url || (shop ? shopUrl(shop, x) : webUrl(x, x.merchant && !/weingut|online/i.test(x.merchant) ? x.merchant : 'Wein'));
       return '<div class="card" style="padding:14px 16px 10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font:600 17px/1.25 var(--head)">' + esc(x.name) + (x.vintage ? ' ' + esc(x.vintage) : '') + '</span>' +
         (x.price != null ? '<span style="flex:none;font:600 15px var(--head)">' + eur(x.price) + '</span>' : '') + '</div>' +
