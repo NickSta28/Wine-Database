@@ -103,20 +103,26 @@ export function chipsHtml(top, recent, q) {
   const c = (l, r) => '<button class="chip' + (r ? ' recent' : '') + '" data-act="chip" data-q="' + esc(l) + '" aria-pressed="' + (l.toLowerCase() === ql) + '">' + (r ? icon('clock') : '') + esc(l) + '</button>';
   return top.map((l) => c(l, false)).join('') + recent.map((l) => c(l, true)).join('');
 }
+// Kapsel-Stapel eines Fachs (Regal und Mini-Fach nutzen dieselbe Darstellung).
+// items: [{ w, hit }] in Reihenfolge der Priorität – die ersten liegen unten vorne.
+export function stackHtml(items, capCls = '') {
+  const L = layout(items.length), shown = [];
+  L.rows.forEach((k) => { for (let j = 0; j < k; j++) shown.push(items[shown.length]); });
+  const rows = []; let p = 0;
+  for (let r = L.rows.length - 1; r >= 0; r--) {
+    const caps = [];
+    for (let j = 0; j < L.rows[r]; j++) { const x = shown[p++]; caps.unshift(cap(tintOf(x.w), capCls, x.hit)); }
+    rows.unshift('<div class="lr' + (L.stacked ? ' st' : '') + '">' + caps.join('') + '</div>');
+  }
+  return rows.join('');
+}
 export function shelfHtml(D, q) {
   const m = matcher(q);
   return '<div class="shelf"><div class="grid">' + faecher(D).map((f) => {
     const wines = f.wines.map((w, i) => ({ w, i, hit: m ? m(w) : false }));
     const hits = wines.filter((x) => x.hit).length;
     if (m) wines.sort((a, b) => (b.hit - a.hit) || (a.i - b.i));
-    const L = layout(wines.length), shown = [];
-    L.rows.forEach((k) => { for (let j = 0; j < k; j++) shown.push(wines[shown.length]); });
-    const rows = []; let p = 0;
-    for (let r = L.rows.length - 1; r >= 0; r--) {
-      const caps = [];
-      for (let j = 0; j < L.rows[r]; j++) { const x = shown[p++]; caps.unshift(cap(tintOf(x.w), '', x.hit)); }
-      rows.unshift('<div class="lr' + (L.stacked ? ' st' : '') + '">' + caps.join('') + '</div>');
-    }
+    const rows = [stackHtml(wines)];
     const n = wines.length, empty = !n;
     const cnt = empty ? '' : '<span class="cnt' + (m && hits ? ' hit' : '') + '">' + (m ? (hits ? hits + ' von ' + n : '0') : n) + '</span>';
     const aria = f.name + ', ' + plural(n, 'Wein', 'Weine') + ', ' + fl(f.bottles) + (m ? ', ' + hits + ' Treffer' : '');
@@ -162,8 +168,8 @@ export function fachView(S, D, name, list, opts = {}) {
   const sorted = list.slice().sort(sorters[S.fachSort] ? sorters[S.fachSort][1] : sorters.stock[1]);
   const b = list.reduce((s, w) => s + w.stock, 0), v = list.reduce((s, w) => s + w.value, 0);
   const nProd = new Set(list.map((w) => w.producer).filter(Boolean)).size, nReg = new Set(list.map((w) => w.region).filter(Boolean)).size;
-  const nine = sorted.slice().sort(sorters.stock[1]).slice(0, 9).map((w) => cap(capOf(w), 's20'));
-  const mini = [nine.slice(6, 9), nine.slice(3, 6), nine.slice(0, 3)].filter((r) => r.length).map((r) => '<div class="lr">' + r.join('') + '</div>').join('');
+  // Mini-Fach: exakt wie im Regal (gleiche Stufe, Reihenfolge und Kapselfarben)
+  const mini = o.mini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20') : '';
   return backBtn(o.back[0], o.back[1]) +
     '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +

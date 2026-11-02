@@ -405,6 +405,8 @@ document.addEventListener('input', (ev) => {
   const t = ev.target;
   if (t.id === 'q') { S.q = t.value; S.showDrop = !!t.value.trim(); refreshShelf(); return; }
   if (t.dataset && t.dataset.input === 'producer') syncCapUi(t.value);
+  // Weinart Champagner: Rebsorte einheitlich „Champagner“, falls noch leer
+  if (t.name === 'wine_type' && t.value === 'Champagner' && t.form && t.form.elements.grape && !t.form.elements.grape.value.trim()) t.form.elements.grape.value = 'Champagner';
   if (t.closest && t.closest('form[data-form=new]') && ['producer', 'name', 'vintage'].includes(t.name)) {
     const box = $('#shop-links'); const f = t.form;
     if (box) box.innerHTML = V.shopLinks({ producer: f.elements.producer.value, name: f.elements.name.value, vintage: f.elements.vintage.value });
