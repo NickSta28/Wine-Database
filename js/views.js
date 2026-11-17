@@ -78,8 +78,7 @@ export function homeView(S, D) {
   const last = D.wines.flatMap((w) => w.drinks.filter((d) => d.drunk_on).map((d) => ({ w, d }))).sort((a, b) => b.d.drunk_on.localeCompare(a.d.drunk_on))[0];
   const prod = groupSum(D.wines.filter((w) => w.stock > 0), (w) => w.producer, (w) => w.stock).slice(0, 3);
   const pval = (name) => D.wines.filter((w) => w.producer === name).reduce((s, w) => s + w.value, 0);
-  return head('Mein Keller', 'Übersicht', settingsBtn()) + homeSeg('home') +
-    '<div class="hero"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">' +
+  const main = '<div class="hero"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">' +
     '<div><div class="l">Im Keller</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:2px"><span class="big">' + num(t.stock) + '</span><span style="color:#D8C8BE">Flaschen</span></div></div>' +
     '<div style="text-align:right"><div class="l">Lagerwert</div><div style="font:600 24px var(--head);margin-top:2px">' + eur(t.value, 0) + '</div>' +
     '<div class="l" style="margin-top:4px">Ø ' + eur2(t.stock ? t.value / t.stock : 0) + ' / Flasche</div></div></div>' +
@@ -91,8 +90,26 @@ export function homeView(S, D) {
       '<span class="sub" style="display:block;margin-top:2px;font-size:13px">' + esc([last.w.producer, last.w.region, deDate(last.d.drunk_on)].filter(Boolean).join(' · ')) + '</span>' +
       (last.d.note ? '<span style="display:block;margin-top:8px;font-size:13px">„' + esc(last.d.note) + '“</span>' : '') + '</span></a>' : '') +
     (prod.length ? '<div class="sec">Größte Bestände nach Weingut</div><div class="card list">' +
-      prod.map(([n, c]) => '<a class="row" href="#/regal?q=' + encodeURIComponent(n) + '"><span class="tx"><span class="t">' + esc(n) + '</span></span><span class="r" style="color:var(--muted);font-size:13px">' + fl(c) + ' · ' + eur(pval(n), 0) + '</span></a>').join('') + '</div>' : '') +
-    '<div class="btns"><a class="btn ghost" href="#/regal">' + icon('shelf') + 'Zum Weinregal</a></div>';
+      prod.map(([n, c]) => '<a class="row" href="#/regal?q=' + encodeURIComponent(n) + '"><span class="tx"><span class="t">' + esc(n) + '</span></span><span class="r" style="color:var(--muted);font-size:13px">' + fl(c) + ' · ' + eur(pval(n), 0) + '</span></a>').join('') + '</div>' : '');
+  if (!S.wide) return head('Mein Keller', 'Übersicht', settingsBtn()) + homeSeg('home') + main + '<div class="btns"><a class="btn ghost" href="#/regal">' + icon('shelf') + 'Zum Weinregal</a></div>';
+  // iPad quer: Dashboard mit Regal und Jahresverlauf rechts
+  const yr = {};
+  D.wines.forEach((w) => {
+    w.purchases.forEach((p) => { const y = yearOf(p.purchased_on); if (y) (yr[y] = yr[y] || [0, 0])[0] += p.qty; });
+    w.drinks.forEach((d) => { const y = yearOf(d.drunk_on); if (y) (yr[y] = yr[y] || [0, 0])[1] += d.qty; });
+  });
+  const years = Object.keys(yr).sort().slice(-6).map((y) => [y, yr[y][0], yr[y][1]]);
+  return head('Mein Keller', 'Übersicht', settingsBtn()) +
+    '<div class="dash"><div>' + main + '</div><div><div class="sec" style="margin-top:18px;display:flex;justify-content:space-between"><span>Weinregal</span><a href="#/regal" style="color:var(--wine);letter-spacing:0;text-transform:none;font-weight:600">Öffnen</a></div>' + shelfHtml(D, '') +
+    (years.length ? '<div class="sec">Gekauft und getrunken pro Jahr</div><div class="card chart">' + pairCols(years) + '</div>' : '') + '</div></div>';
+}
+// Doppel-Säulen je Jahr: gekauft (hell) und getrunken (Weinrot)
+function pairCols(rows) {
+  const max = Math.max(1, ...rows.flatMap((r) => [r[1], r[2]]));
+  const bar = (v, cls, href, label) => '<a class="pb ' + cls + '" href="' + href + '" aria-label="' + esc(label) + '"><span>' + num(v) + '</span><i style="height:' + Math.max(2, v / max * 92).toFixed(0) + 'px"></i></a>';
+  return '<div class="pairs">' + rows.map(([y, b, d]) => '<div class="pc"><div class="pbars">' +
+    bar(b, 'b', listHref('byear', y, 'bought'), y + ': ' + b + ' gekauft') + bar(d, 'd', listHref('dyear', y, 'drunk'), y + ': ' + d + ' getrunken') + '</div><b>' + esc(y) + '</b></div>').join('') + '</div>' +
+    '<div class="plg"><span><i class="b"></i>Gekauft</span><span><i class="d"></i>Getrunken</span><em>Flaschen · ohne undatierte Einträge</em></div>';
 }
 const settingsBtn = () => '<button class="ibtn" data-act="settings" aria-label="Einstellungen">' + icon('gear') + '</button>';
 const shortType = (t) => ({ 'Weißwein': 'Weiß', 'Rotwein': 'Rot', 'Champagner': 'Champagner', 'Schaumwein': 'Schaum', 'Rosé': 'Rosé', 'Süßwein': 'Süß' }[t] || t);
@@ -124,7 +141,7 @@ export function stackHtml(items, capCls = '', colorOf = tintOf) {
   }
   return rows.join('');
 }
-export function shelfHtml(D, q) {
+export function shelfHtml(D, q, sel) {
   const m = matcher(q);
   return '<div class="shelf"><div class="grid">' + faecher(D).map((f) => {
     const wines = f.wines.map((w, i) => ({ w, i, hit: m ? m(w) : false }));
@@ -134,7 +151,7 @@ export function shelfHtml(D, q) {
     const n = wines.length, empty = !n;
     const cnt = empty ? '' : '<span class="cnt' + (m && hits ? ' hit' : '') + '">' + (m ? (hits ? hits + ' von ' + n : '0') : n) + '</span>';
     const aria = f.name + ', ' + plural(n, 'Wein', 'Weine') + ', ' + fl(f.bottles) + (m ? ', ' + hits + ' Treffer' : '');
-    return '<a class="fach' + (m && !hits ? ' dim' : '') + (empty ? ' empty-f' : '') + '" href="#/fach/' + encodeURIComponent(f.name) + '" aria-label="' + esc(aria) + '">' +
+    return '<a class="fach' + (m && !hits ? ' dim' : '') + (empty ? ' empty-f' : '') + (f.name === sel ? ' sel' : '') + '" href="#/fach/' + encodeURIComponent(f.name) + '" aria-label="' + esc(aria) + '">' +
       '<span class="in">' + rows.join('') + cnt + '</span><span class="lab"><span>' + esc(f.name) + '</span></span></a>';
   }).join('') + '</div></div>';
 }
@@ -162,7 +179,8 @@ function wineRow(w, mode, date) {
 }
 
 /* ---------- Fach / Trefferliste ---------- */
-// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought', year }
+// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought', year, split }
+// split: rechte Spalte der geteilten Ansicht (iPad) – ohne Zurück-Knopf und Mini-Fach
 // Bei getrunken/gekauft: Standard-Sortierung nach Datum, zuletzt getrunkener/gekaufter Wein zuerst
 export function fachView(S, D, name, list, opts = {}) {
   const o = { eyebrow: 'Fach', back: ['#/regal', 'Weinregal'], mini: true, scope: 'stock', ...opts };
@@ -177,11 +195,12 @@ export function fachView(S, D, name, list, opts = {}) {
   const b = list.reduce((s, w) => s + w.stock, 0), v = list.reduce((s, w) => s + w.value, 0);
   const nProd = new Set(list.map((w) => w.producer).filter(Boolean)).size, nReg = new Set(list.map((w) => w.region).filter(Boolean)).size;
   // Mini-Fach: gleiche Stufe und Reihenfolge wie im Regal, Kapselfarben je Weingut
-  const mini = o.mini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20', capOf) : '';
-  return backBtn(o.back[0], o.back[1]) +
+  const showMini = o.mini && !o.split;
+  const mini = showMini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20', capOf) : '';
+  return (o.split ? '' : backBtn(o.back[0], o.back[1])) +
     '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +
-    (o.mini ? '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>' : '') + '</div>' +
+    (showMini ? '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>' : '') + '</div>' +
     '<div class="kpis"><div class="kpi dark"><div class="l">Weine</div><div class="v">' + num(list.length) + '</div></div>' +
     (o.scope === 'stock'
       ? '<div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(b) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(v, 0) + '</div></div>'
@@ -191,6 +210,14 @@ export function fachView(S, D, name, list, opts = {}) {
       '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, o.scope, dateOf(w))).join('') + '</div>'
       : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
       : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
+}
+
+// iPad quer: Regal links, gewähltes Fach rechts
+export function fachSplit(S, D, name, list) {
+  const t = totals(D), F = faecher(D);
+  return '<div class="split"><div class="split-l">' + head('Mein Keller', 'Weinregal', '<div class="meta">' + fl(t.stock) + '<br>' + plural(F.length, 'Fach', 'Fächer') + '</div>') +
+    shelfHtml(D, S.q, name) + (S.q.trim() ? '<p class="hint">Gold = Treffer für „' + esc(S.q.trim()) + '“ · <a href="#/regal" style="color:var(--wine)">Suche bearbeiten</a></p>' : '') +
+    '</div><div class="split-r">' + fachView(S, D, name, list, { split: true }) + '</div></div>';
 }
 
 /* ---------- Detail ---------- */
@@ -427,8 +454,16 @@ const box = (title, inner) => '<div class="card chart" style="margin-top:12px"><
 // Diagramm-Raster: auf dem Telefon untereinander, auf breiten Bildschirmen zweispaltig
 const sg = (inner) => '<div class="sgrid">' + inner + '</div>';
 export function statsView(S, D) {
-  const tab = S.statTab;
-  const seg = '<div class="seg">' + [['stock', 'Bestand'], ['drunk', 'Getrunken'], ['buy', 'Einkauf']].map(([k, l]) => '<button data-act="stat-tab" data-k="' + k + '" aria-pressed="' + (tab === k) + '">' + l + '</button>').join('') + '</div>';
+  // Breiter Bildschirm: zusätzlicher Reiter „Alles“ (Standard), zeigt alle drei Bereiche untereinander
+  const tabs = (S.wide ? [['all', 'Alles']] : []).concat([['stock', 'Bestand'], ['drunk', 'Getrunken'], ['buy', 'Einkauf']]);
+  const tab = tabs.some(([k]) => k === S.statTab) ? S.statTab : (S.wide ? 'all' : 'stock');
+  const seg = '<div class="seg">' + tabs.map(([k, l]) => '<button data-act="stat-tab" data-k="' + k + '" aria-pressed="' + (tab === k) + '">' + l + '</button>').join('') + '</div>';
+  const body = tab === 'all'
+    ? [['stock', 'Bestand'], ['drunk', 'Getrunken'], ['buy', 'Einkauf']].map(([k, l]) => '<h2 class="shead">' + l + '</h2>' + statPart(S, D, k)).join('')
+    : statPart(S, D, tab);
+  return head('Keller in Zahlen', 'Statistik') + seg + body;
+}
+function statPart(S, D, tab) {
   let body = '';
   if (tab === 'stock') {
     const inS = D.wines.filter((w) => w.stock > 0), t = totals(D);
@@ -474,7 +509,7 @@ export function statsView(S, D) {
         barBox(S, 'Händler', groupSum(ps, (x) => x.p.merchant, mval), mfmt, 'merch', (k) => listHref('merchant', k, 'bought'), metricSeg(S, 'buy')));
     }
   }
-  return head('Keller in Zahlen', 'Statistik') + seg + body;
+  return body;
 }
 
 /* ---------- Vorschläge ---------- */

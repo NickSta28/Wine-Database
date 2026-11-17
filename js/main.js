@@ -10,7 +10,7 @@ const S = {
   data: null, D: null, urls: {}, loaded: false,
   route: { name: 'home', arg: '' }, prevHash: '',
   q: '', showDrop: false, recent: [], fachSort: 'stock',
-  drunkFilter: 'all', drunkLimit: 40, statTab: 'stock', expand: new Set(),
+  drunkFilter: 'all', drunkLimit: 40, statTab: '', expand: new Set(),
   form: null, busy: false, backHref: '#/regal', backLabel: 'Weinregal'
 };
 try { const p = JSON.parse(localStorage.getItem(PREFS) || '{}'); if (Array.isArray(p.recent)) S.recent = p.recent.slice(0, 3); } catch { /* egal */ }
@@ -83,6 +83,7 @@ function render(top) {
   const y = window.scrollY, D = S.D, r = S.route;
   let html = '', tab = 'home';
   if (r.name === 'regal') html = V.regalView(S, D);
+  else if (r.name === 'fach' && S.wide) html = V.fachSplit(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
   else if (r.name === 'fach') html = V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
   else if (r.name === 'search') { const m = matcher(S.q); html = V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false }); }
   else if (r.name === 'list') {
@@ -424,6 +425,15 @@ document.addEventListener('keydown', (ev) => {
 });
 document.addEventListener('focusin', (ev) => { if (ev.target.id === 'q' && S.q.trim()) { S.showDrop = true; renderRegalParts(); } });
 window.addEventListener('hashchange', onRoute);
+// iPad drehen: ab 800 pt breites Layout (Seitenleiste, geteilte Ansichten) – Ansicht neu aufbauen
+const WIDE = window.matchMedia('(min-width: 800px)');
+S.wide = WIDE.matches;
+WIDE.addEventListener('change', (e) => {
+  S.wide = e.matches;
+  if (!S.loaded || !api.isLoggedIn()) return;
+  if (S.route.name === 'neu') captureNewForm();
+  render();
+});
 
 /* ---------- Start ---------- */
 (async function start() {

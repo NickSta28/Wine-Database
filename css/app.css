@@ -263,6 +263,19 @@ nav.tabs a.plus[aria-current=page]{box-shadow:0 0 0 4px #EBD3D7}
 .err{color:#8A2B33;font:500 13px var(--sans)}
 
 /* ---------- Tablet / iPad ---------- */
+.pairs{display:flex;align-items:stretch;gap:10px}
+.pc{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+.pbars{display:flex;align-items:flex-end;gap:4px;height:118px;width:100%;justify-content:center}
+.pb{flex:1;max-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;color:inherit}
+.pb span{font:500 10px var(--sans);color:var(--muted)}
+.pb i{width:100%;border-radius:4px 4px 0 0;min-height:2px}
+.pb.b i,.plg i.b{background:#CDB89A}
+.pb.d i,.plg i.d{background:var(--wine)}
+.pc b{font:500 11px var(--sans);color:var(--muted);margin-top:5px}
+.plg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font:500 12px var(--sans)}
+.plg span{display:flex;align-items:center;gap:6px}
+.plg i{width:10px;height:10px;border-radius:3px}
+.plg em{font-style:normal;color:var(--muted);margin-left:auto;font-size:11px}
 nav.side{display:none}
 .wgrid{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 /* Hochformat-iPad (ab 640 pt): etwas breitere Spalte, sonst wie am Telefon */
@@ -309,8 +322,27 @@ nav.side{display:none}
   .sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;margin-top:12px}
   .sgrid>.chart{margin-top:0!important}
 
+  /* Geteilte Ansicht (Regal | Fach) und Dashboard */
+  .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:32px;align-items:start}
+  .split-l{position:sticky;top:calc(env(safe-area-inset-top) + 24px)}
+  .split-r{padding-top:4px}
+  .dash{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+  .dash .shelf,.split .shelf{margin-top:12px;padding:10px}
+  .dash .shelf .grid,.split .shelf .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .dash .shelf .fach .in,.split .shelf .fach .in{height:96px;padding-bottom:6px}
+  .dash .shelf .cap,.split .shelf .cap{width:22px;height:22px}
+  .dash .shelf .fach .lr,.split .shelf .fach .lr{gap:3px}
+  .dash .shelf .fach .lr.st,.split .shelf .fach .lr.st{gap:2px;margin-top:-3px}
+  .dash .shelf .fach .lab,.split .shelf .fach .lab{height:26px}
+  .dash .shelf .fach .lab span,.split .shelf .fach .lab span{font-size:11px}
+  .fach.sel .in{box-shadow:inset 0 10px 14px rgba(95,48,22,.34),inset 0 0 0 3px var(--wine)}
+  .fach.sel .lab span{background:var(--wine);color:var(--wine-ink)}
+  .shead{margin:30px 0 0;font:600 22px var(--head)}
+  .shead+.sgrid,.shead+.kpis{margin-top:12px}
+
   /* Dialoge mittig statt Bottom-Sheet */
   .sheet{top:50%;bottom:auto;left:50%;right:auto;width:min(560px,calc(100vw - 48px));max-height:88dvh;transform:translate(-50%,-50%);border-radius:22px;padding:24px 26px 26px}
   .sheet .grab{display:none}
   .toast{left:calc(50% + 108px);bottom:28px}
 }
+.note .cap{display:inline-block;vertical-align:-2px}
