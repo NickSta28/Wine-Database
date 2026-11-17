@@ -65,7 +65,7 @@ function onRoute() {
   if (r.name === 'regal' && r.params.get('q') != null) { S.q = r.params.get('q'); S.showDrop = false; }
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
   if (S.form) S.form.keep = false;
-  if (r.name === 'drunk' && prev.name !== 'drunk') S.drunkLimit = 40;
+  if (r.name === 'drunk' && prev.name !== 'drunk') { S.drunkLimit = 40; if (prev.name !== 'wine') S.tlPage = 0; }
   // Neue Liste: Standard-Sortierung (Bestand bzw. Datum); beim Zurückkommen vom Wein bleibt die Wahl
   if (['fach', 'list', 'search'].includes(r.name) && prev.name !== 'wine') S.fachSort = 'stock';
   S.route = r; S.prevHash = location.hash || '#/';
@@ -188,6 +188,7 @@ const actions = {
   'all-hits'() { addRecent(S.q); S.showDrop = false; location.hash = '#/suche'; },
   'fach-sort'(el) { S.fachSort = el.dataset.k; render(); },
   'drunk-filter'(el) { S.drunkFilter = el.dataset.k; S.drunkLimit = 40; render(); },
+  'tl-page'(el) { S.tlPage = Math.max(0, (S.tlPage || 0) + Number(el.dataset.d)); render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
   metric(el) { S.metric = { ...(S.metric || {}), [el.dataset.g]: el.dataset.k }; render(); },

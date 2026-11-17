@@ -278,6 +278,40 @@ nav.tabs a.plus[aria-current=page]{box-shadow:0 0 0 4px #EBD3D7}
 .plg em{font-style:normal;color:var(--muted);margin-left:auto;font-size:11px}
 nav.side{display:none}
 .wgrid{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+/* Quartals-Zeitverlauf */
+.qt{display:flex;gap:3px;margin-top:4px}
+.qc{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
+.qc .up,.qc .dn{width:100%;height:64px;display:flex;justify-content:center}
+.qc .up{align-items:flex-end}
+.qc .dn{align-items:flex-start;border-top:1px solid #CFC4B6}
+.qc i{position:relative;display:block;width:72%;max-width:22px}
+.qc .up i{background:#CDB89A;border-radius:3px 3px 0 0}
+.qc .dn i{background:var(--wine);border-radius:0 0 3px 3px}
+.qc i.cut{background-image:linear-gradient(transparent 6px,var(--card) 6px 9px,transparent 9px)}
+.qc .dn i.cut{background-image:linear-gradient(to top,transparent 6px,var(--card) 6px 9px,transparent 9px)}
+.qc i span{position:absolute;left:50%;transform:translateX(-50%);font:600 10px var(--sans);color:var(--ink);white-space:nowrap}
+.qc .up i span{top:-14px}
+.qc .dn i span{bottom:-14px}
+.qc .ql{font:500 10px var(--sans);color:var(--muted);margin-top:16px}
+.qc b{font:600 10px var(--sans);color:var(--ink);height:14px}
+.cols.lk .col.nl b{color:var(--muted)}
+.mseg button[disabled]{opacity:.35}
+.mseg button svg{width:16px;height:16px;vertical-align:middle}
+/* Zeitstrahl Getrunken (iPad) */
+.tl{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:4px}
+.tl::before{content:'';position:absolute;left:0;right:0;top:11px;height:2px;background:#E2D2C4}
+.tle{position:relative;display:flex;flex-direction:column;gap:6px;min-width:0;color:inherit}
+.tle .dot{width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--wine);z-index:1}
+.tle .dot.now{background:var(--wine)}
+.tle .d{font:600 12px var(--sans);color:var(--muted)}
+.tlc{display:flex;gap:10px;padding:10px;border-radius:14px;background:var(--paper);border:1px solid var(--line);min-height:122px}
+.tlc .th{flex:none;width:52px;height:70px;border-radius:5px;background:var(--pale);object-fit:cover;display:flex;align-items:center;justify-content:center}
+.tlc .tx{display:flex;flex-direction:column;min-width:0}
+.tlc .w{font:600 14px/1.25 var(--head);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tlc .s{font:400 11px var(--sans);color:var(--muted);margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tlc .n{font:400 12px/1.4 var(--sans);margin-top:5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tlc .an{align-self:flex-start;max-width:100%;margin-top:6px;padding:3px 8px;border-radius:9px;background:#F1E3B8;font:500 10px var(--sans);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
 /* Hochformat-iPad (ab 640 pt): etwas breitere Spalte, sonst wie am Telefon */
 @media (min-width:640px){
   #app{max-width:680px}
@@ -321,6 +355,7 @@ nav.side{display:none}
   .mems .mem{margin:0}
   .sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;margin-top:12px}
   .sgrid>.chart{margin-top:0!important}
+  .sgrid>.full{grid-column:1/-1}
 
   /* Geteilte Ansicht (Regal | Fach) und Dashboard */
   .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:32px;align-items:start}

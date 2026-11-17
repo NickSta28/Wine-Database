@@ -286,6 +286,8 @@ export function drunkView(S, D) {
   let items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
   if (S.drunkFilter === 'again') items = items.filter((x) => x.d.buy_again === 'ja');
   if (S.drunkFilter === 'occasion') items = items.filter((x) => x.d.occasion);
+  const occ = String(S.drunkFilter).startsWith('occ:') ? S.drunkFilter.slice(4) : '';
+  if (occ) items = items.filter((x) => x.d.occasion === occ);
   items.sort((a, b) => String(b.d.drunk_on || '').localeCompare(String(a.d.drunk_on || '')) || String(b.d.created_at).localeCompare(String(a.d.created_at)));
   const groups = [];
   for (const x of items) {
@@ -297,7 +299,8 @@ export function drunkView(S, D) {
   const fchip = (k, l) => '<button class="chip" data-act="drunk-filter" data-k="' + k + '" aria-pressed="' + (S.drunkFilter === k) + '">' + l + '</button>';
   return head('Meine Erinnerungen', 'Getrunken') + homeSeg('drunk') +
     '<div class="kpis"><div class="kpi dark"><div class="l">Flaschen</div><div class="v">' + num(t.drunk) + '</div></div><div class="kpi"><div class="l">Genossen für</div><div class="v">' + eur(t.drunkValue, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + num(t.again) + '×</div></div></div>' +
-    '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + '</div>' +
+    (S.wide ? drunkWide(S, D) : '') +
+    '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + (occ ? fchip(S.drunkFilter, 'Anlass: ' + esc(occ)) : '') + '</div>' +
     (items.length ? shown.g.map((g) => '<div class="year"><b>' + esc(g.y) + '</b><i></i></div><div class="mems">' + g.items.map(({ w, d }) =>
       '<div class="mem"><a class="go" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
       '<span class="w">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape].filter(Boolean).join(' · ')) + '</span>' +
@@ -305,6 +308,30 @@ export function drunkView(S, D) {
       '<button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button></div>').join('') + '</div>').join('') +
       (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '')
       : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>');
+}
+
+// iPad quer: Zeitstrahl der letzten Erinnerungen (seitenweise) sowie Jahre und Anlässe
+const TL_PER = 4;
+function drunkWide(S, D) {
+  const all = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
+  const dated = all.filter((x) => x.d.drunk_on).sort((a, b) => a.d.drunk_on.localeCompare(b.d.drunk_on) || String(a.d.created_at).localeCompare(String(b.d.created_at)));
+  const pages = Math.max(1, Math.ceil(dated.length / TL_PER)), page = Math.min(S.tlPage || 0, pages - 1);
+  const end = dated.length - page * TL_PER, slice = dated.slice(Math.max(0, end - TL_PER), end);
+  const tl = slice.length ? '<div class="tl">' + slice.map(({ w, d }, i) =>
+    '<a class="tle" href="#/wein/' + w.id + '"><span class="dot' + (page === 0 && i === slice.length - 1 ? ' now' : '') + '"></span><span class="d">' + esc(deDate(d.drunk_on)) + '</span>' +
+    '<span class="tlc">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="w">' + esc(w.name) + '</span><span class="s">' + esc(w.producer || '') + '</span>' +
+    (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">' + esc(d.occasion) + '</span>' : '') + '</span></span></a>').join('') + '</div>' : '<p class="note">Noch keine datierten Einträge.</p>';
+  const pager = '<div class="mseg"><button data-act="tl-page" data-d="1" aria-label="Ältere Einträge"' + (page >= pages - 1 ? ' disabled' : '') + '>' + icon('back') + '</button>' +
+    '<button data-act="tl-page" data-d="-1" aria-label="Neuere Einträge"' + (page === 0 ? ' disabled' : '') + '>' + icon('chev') + '</button></div>';
+  const yrs = groupSum(dated, (x) => yearOf(x.d.drunk_on), (x) => x.d.qty).sort((a, b) => a[0] - b[0]).slice(-6);
+  const nodate = all.filter((x) => !x.d.drunk_on).reduce((s, x) => s + x.d.qty, 0);
+  if (nodate) yrs.push(['ohne Datum', nodate]);
+  const occs = groupSum(all.filter((x) => x.d.occasion), (x) => x.d.occasion, () => 1);
+  return '<div class="card chart" style="margin-top:16px"><div class="chart-head"><div class="eyebrow">Zeitstrahl · ' + (page === 0 ? 'zuletzt getrunken' : 'Seite ' + (page + 1) + ' von ' + pages) + '</div>' + pager + '</div>' + tl + '</div>' +
+    '<div class="sgrid"><div class="card chart"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">Getrunken je Jahr</div>' + cols(yrs, num, (k) => (k === 'ohne Datum' ? '' : listHref('dyear', k, 'drunk'))) + '</div>' +
+    '<div class="card chart"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">Anlässe</div>' +
+    (occs.length ? '<div class="tags" style="margin-top:0">' + occs.map(([k, n]) => '<button class="chip" data-act="drunk-filter" data-k="occ:' + esc(k) + '" aria-pressed="' + (S.drunkFilter === 'occ:' + k) + '">' + esc(k) + ' <b style="font-weight:600;color:var(--muted)">' + n + '</b></button>').join('') + '</div>' +
+      '<p class="note">Tippen auf einen Anlass zeigt unten alle Weine, die du dazu getrunken hast.</p>' : '<p class="note" style="margin-top:0">Noch keine Anlässe erfasst. Du kannst sie beim Eintrag „Getrunken“ ergänzen.</p>') + '</div></div>';
 }
 
 /* ---------- Neuer Wein / Bearbeiten ---------- */
@@ -436,7 +463,8 @@ function cols(rows, fmt = num, link) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
   const bar = (v) => '<span>' + fmt(v) + '</span><i style="height:' + Math.max(2, v / max * 80).toFixed(0) + 'px"></i>';
   // Mit Link: ganze Säule inkl. Beschriftung ist antippbar
-  if (link) return '<div class="cols lk">' + rows.map(([k, v]) => '<a class="col" href="' + esc(link(k)) + '" aria-label="' + esc(k + ': ' + fmt(v) + ', Weine anzeigen') + '">' + bar(v) + '<b>' + esc(k) + '</b></a>').join('') + '</div>';
+  if (link) return '<div class="cols lk">' + rows.map(([k, v]) => link(k) ? '<a class="col" href="' + esc(link(k)) + '" aria-label="' + esc(k + ': ' + fmt(v) + ', Weine anzeigen') + '">' + bar(v) + '<b>' + esc(k) + '</b></a>'
+    : '<div class="col nl">' + bar(v) + '<b>' + esc(k) + '</b></div>').join('') + '</div>';
   return '<div class="cols">' + rows.map(([k, v]) => '<div class="col">' + bar(v) + '</div>').join('') + '</div>' +
     '<div class="cols-x">' + rows.map(([k]) => '<span>' + esc(k) + '</span>').join('') + '</div>';
 }
@@ -451,6 +479,29 @@ function metricSeg(S, g) {
   return '<div class="mseg" role="group" aria-label="Einheit">' + [['eur', 'Euro'], ['qty', 'Flaschen']].map(([k, l]) => '<button data-act="metric" data-g="' + g + '" data-k="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>').join('') + '</div>';
 }
 const box = (title, inner) => '<div class="card chart" style="margin-top:12px"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">' + esc(title) + '</div>' + inner + '</div>';
+// Zeitverlauf je Quartal: Käufe nach oben, getrunkene Flaschen nach unten (Telefon: letzte 8 Quartale)
+function quarterBox(S, D, nodate) {
+  const qOf = (d) => (d ? d.slice(0, 4) * 4 + Math.floor((Number(d.slice(5, 7)) - 1) / 3) : null);
+  const m = new Map(), add = (q, i, n) => { if (q == null) return; const v = m.get(q) || [0, 0]; v[i] += n; m.set(q, v); };
+  D.wines.forEach((w) => { w.purchases.forEach((p) => add(qOf(p.purchased_on), 0, p.qty)); w.drinks.forEach((d) => add(qOf(d.drunk_on), 1, d.qty)); });
+  if (!m.size) return '';
+  const ks = [...m.keys()], hi = Math.max(...ks), lo = Math.max(Math.min(...ks), hi - (S.wide ? 23 : 7));
+  const rows = []; for (let q = lo; q <= hi; q++) rows.push([q, ...(m.get(q) || [0, 0])]);
+  // Ausreißer (z. B. Erstbestand beim Import) kappen, damit der Rest lesbar bleibt
+  const vals = rows.flatMap((r) => [r[1], r[2]]).sort((a, b) => b - a);
+  const max = Math.max(1, vals[0] > 3 * (vals[1] || 0) && vals[1] ? vals[1] * 1.15 : vals[0]);
+  const H = 64, h = (v) => Math.min(H, v / max * H);
+  const cut = (v) => (v > max ? ' cut' : '');
+  const showN = rows.length <= 12, num1 = (v) => (v && (showN || v > max) ? '<span>' + v + '</span>' : '');
+  const lab = (q) => (q % 4 === 0 || q === lo ? '<b>' + Math.floor(q / 4) + '</b>' : '<b></b>');
+  const col = ([q, b, d]) => '<div class="qc" title="Q' + (q % 4 + 1) + ' ' + Math.floor(q / 4) + ': ' + b + ' gekauft, ' + d + ' getrunken">' +
+    '<div class="up"><i class="' + cut(b) + '" style="height:' + (b ? Math.max(2, h(b)) : 0).toFixed(0) + 'px">' + num1(b) + '</i></div>' +
+    '<div class="dn"><i class="' + cut(d) + '" style="height:' + (d ? Math.max(2, h(d)) : 0).toFixed(0) + 'px">' + num1(d) + '</i></div>' +
+    '<span class="ql">Q' + (q % 4 + 1) + '</span>' + lab(q) + '</div>';
+  return '<div class="card chart full" style="margin-top:12px"><div class="chart-head"><div class="eyebrow">Gekauft und getrunken je Quartal</div></div>' +
+    '<div class="qt" role="img" aria-label="Flaschen je Quartal, gekauft nach oben, getrunken nach unten">' + rows.map(col).join('') + '</div>' +
+    '<div class="plg"><span><i class="b"></i>Gekauft</span><span><i class="d"></i>Getrunken</span>' + (nodate ? '<em>' + num(nodate) + ' getrunkene Flaschen ohne Datum nicht enthalten</em>' : '') + '</div></div>';
+}
 // Diagramm-Raster: auf dem Telefon untereinander, auf breiten Bildschirmen zweispaltig
 const sg = (inner) => '<div class="sgrid">' + inner + '</div>';
 export function statsView(S, D) {
@@ -488,10 +539,12 @@ function statPart(S, D, tab) {
     const items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
     if (!items.length) body = '<div class="empty"><b>Noch nichts getrunken</b></div>';
     else {
-      const years = groupSum(items.filter((x) => x.d.drunk_on), (x) => yearOf(x.d.drunk_on), (x) => x.d.qty).sort((a, b) => a[0] - b[0]).slice(-8);
+      const years = groupSum(items.filter((x) => x.d.drunk_on), (x) => yearOf(x.d.drunk_on), (x) => x.d.qty).sort((a, b) => a[0] - b[0]).slice(-7);
+      const nodate = items.filter((x) => !x.d.drunk_on).reduce((s, x) => s + x.d.qty, 0);
+      if (nodate) years.push(['ohne Datum', nodate]);
       const ba = BUY_AGAIN.map(([k, l]) => [l, items.filter((x) => x.d.buy_again === k).length]).filter((x) => x[1]);
       const fav = groupSum(items.filter((x) => x.d.buy_again === 'ja'), (x) => x.w.producer, () => 1);
-      body = sg((years.length ? box('Flaschen pro Jahr', cols(years, num, (k) => listHref('dyear', k, 'drunk'))) : '') +
+      body = sg(quarterBox(S, D, nodate) + (years.length ? box('Flaschen pro Jahr', cols(years, num, (k) => (k === 'ohne Datum' ? '' : listHref('dyear', k, 'drunk')))) : '') +
         barBox(S, 'Getrunkene Rebsorten', groupSum(items, (x) => x.w.grape, (x) => x.d.qty), num, 'dgrape', (k) => listHref('grape', k, 'drunk')) +
         (fav.length ? barBox(S, 'Lieblings-Weingüter (nochmal kaufen: ja)', fav, num, 'fav', (k) => listHref('producer', k, 'drunk')) : '') +
         (ba.length ? barBox(S, 'Nochmal kaufen?', ba, num, 'again', (k) => listHref('again', k, 'drunk')) : ''));
