@@ -426,8 +426,8 @@ document.addEventListener('keydown', (ev) => {
 });
 document.addEventListener('focusin', (ev) => { if (ev.target.id === 'q' && S.q.trim()) { S.showDrop = true; renderRegalParts(); } });
 window.addEventListener('hashchange', onRoute);
-// iPad drehen: ab 800 pt breites Layout (Seitenleiste, geteilte Ansichten) – Ansicht neu aufbauen
-const WIDE = window.matchMedia('(min-width: 800px)');
+// iPad drehen: ab 800 pt Breite und 600 pt Höhe – iPhone quer bleibt beim Telefon-Layout breites Layout (Seitenleiste, geteilte Ansichten) – Ansicht neu aufbauen
+const WIDE = window.matchMedia('(min-width: 800px) and (min-height: 600px)');
 S.wide = WIDE.matches;
 WIDE.addEventListener('change', (e) => {
   S.wide = e.matches;
