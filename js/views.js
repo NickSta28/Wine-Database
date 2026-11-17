@@ -25,14 +25,21 @@ const P = {
 export const icon = (n, cls = 'i') => '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
 
 /* ---------- Grundgerüst ---------- */
-export function nav(tab) {
+export function nav(tab, side) {
   const a = (href, key, ic, label) => '<a href="#/' + href + '"' + (tab === key ? ' aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span></a>';
+  const s = (href, key, ic, label) => '<a class="it" href="#/' + href + '"' + (side === key ? ' aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span></a>';
   return '<nav class="tabs" aria-label="Hauptnavigation"><div class="wrap">' +
     a('', 'home', 'grid', 'Übersicht') + a('statistik', 'stats', 'stats', 'Statistik') +
     '<a href="#/neu" class="plus" aria-label="Neuen Wein anlegen"' + (tab === 'neu' ? ' aria-current="page"' : '') + '>' + icon('plus') + '</a>' +
-    a('vorschlaege', 'reco', 'glass', 'Vorschläge') + a('wunschliste', 'wish', 'heart', 'Wunschliste') + '</div></nav>';
+    a('vorschlaege', 'reco', 'glass', 'Vorschläge') + a('wunschliste', 'wish', 'heart', 'Wunschliste') + '</div></nav>' +
+    // Seitenleiste für breite Bildschirme (iPad quer); per CSS ein- und ausgeblendet
+    '<nav class="side" aria-label="Hauptnavigation"><div class="brand">' + logo('lgs') + '<span>Weinkeller</span></div>' +
+    s('', 'home', 'grid', 'Übersicht') + s('regal', 'regal', 'shelf', 'Weinregal') + s('getrunken', 'drunk', 'clock', 'Getrunken') +
+    '<i class="gap"></i>' + s('statistik', 'stats', 'stats', 'Statistik') + s('vorschlaege', 'reco', 'glass', 'Vorschläge') + s('wunschliste', 'wish', 'heart', 'Wunschliste') +
+    '<div class="foot"><a class="btn" href="#/neu"' + (side === 'neu' ? ' aria-current="page"' : '') + '>' + icon('plus') + 'Neuer Wein</a>' +
+    '<button class="it" data-act="settings">' + icon('gear') + '<span>Einstellungen</span></button></div></nav>';
 }
-const homeSeg = (cur) => '<div class="seg" role="navigation" aria-label="Ansicht">' +
+const homeSeg = (cur) => '<div class="seg hs" role="navigation" aria-label="Ansicht">' +
   [['', 'Kennzahlen', 'home'], ['regal', 'Regal', 'regal'], ['getrunken', 'Getrunken', 'drunk']]
     .map(([h, l, k]) => '<a href="#/' + h + '"' + (cur === k ? ' aria-current="page"' : '') + '>' + l + '</a>').join('') + '</div>';
 const head = (eyebrow, title, right = '') => '<div class="top"><div><div class="eyebrow">' + esc(eyebrow) + '</div><h1>' + esc(title) + '</h1></div>' + right + '</div>';
@@ -47,8 +54,9 @@ export function labelImg(w, urls, cls) {
 }
 
 /* ---------- Login ---------- */
+const logo = (id) => '<svg class="logo" viewBox="0 0 512 512" aria-hidden="true"><defs><radialGradient id="' + id + '" cx="34%" cy="28%" r="62%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><path d="M256 136c6-30 30-46 62-50" fill="none" stroke="#6B8A4E" stroke-width="14" stroke-linecap="round"/><path d="M300 100c34-12 62 4 70 26-30 14-60 4-70-26z" fill="#8FA86B"/><circle cx="174" cy="176" r="40" fill="#7A1F35"/><circle cx="174" cy="176" r="40" fill="url(#' + id + ')"/><circle cx="256" cy="176" r="40" fill="#7A1F35"/><circle cx="256" cy="176" r="40" fill="url(#' + id + ')"/><circle cx="338" cy="176" r="40" fill="#7A1F35"/><circle cx="338" cy="176" r="40" fill="url(#' + id + ')"/><circle cx="215" cy="248" r="40" fill="#7A1F35"/><circle cx="215" cy="248" r="40" fill="url(#' + id + ')"/><circle cx="297" cy="248" r="40" fill="#7A1F35"/><circle cx="297" cy="248" r="40" fill="url(#' + id + ')"/><circle cx="256" cy="320" r="40" fill="#7A1F35"/><circle cx="256" cy="320" r="40" fill="url(#' + id + ')"/><circle cx="256" cy="392" r="40" fill="#E3C36B"/><circle cx="256" cy="392" r="40" fill="url(#' + id + ')"/></svg>';
 export function loginView(err, busy, email) {
-  return '<div class="login"><svg class="logo" viewBox="0 0 512 512" aria-hidden="true"><defs><radialGradient id="lg4" cx="34%" cy="28%" r="62%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><path d="M256 136c6-30 30-46 62-50" fill="none" stroke="#6B8A4E" stroke-width="14" stroke-linecap="round"/><path d="M300 100c34-12 62 4 70 26-30 14-60 4-70-26z" fill="#8FA86B"/><circle cx="174" cy="176" r="40" fill="#7A1F35"/><circle cx="174" cy="176" r="40" fill="url(#lg4)"/><circle cx="256" cy="176" r="40" fill="#7A1F35"/><circle cx="256" cy="176" r="40" fill="url(#lg4)"/><circle cx="338" cy="176" r="40" fill="#7A1F35"/><circle cx="338" cy="176" r="40" fill="url(#lg4)"/><circle cx="215" cy="248" r="40" fill="#7A1F35"/><circle cx="215" cy="248" r="40" fill="url(#lg4)"/><circle cx="297" cy="248" r="40" fill="#7A1F35"/><circle cx="297" cy="248" r="40" fill="url(#lg4)"/><circle cx="256" cy="320" r="40" fill="#7A1F35"/><circle cx="256" cy="320" r="40" fill="url(#lg4)"/><circle cx="256" cy="392" r="40" fill="#E3C36B"/><circle cx="256" cy="392" r="40" fill="url(#lg4)"/></svg>' +
+  return '<div class="login">' + logo('lg4') + '' +
     '<div class="eyebrow">Wine Database</div><h1 class="title">Mein Weinkeller</h1>' +
     '<form data-form="login"><div class="field"><label for="em">E-Mail</label><input id="em" name="email" type="email" autocomplete="username" required value="' + esc(email || '') + '"></div>' +
     '<div class="field"><label for="pw">Passwort</label><input id="pw" name="password" type="password" autocomplete="current-password" required></div>' +
@@ -263,11 +271,11 @@ export function drunkView(S, D) {
   return head('Meine Erinnerungen', 'Getrunken') + homeSeg('drunk') +
     '<div class="kpis"><div class="kpi dark"><div class="l">Flaschen</div><div class="v">' + num(t.drunk) + '</div></div><div class="kpi"><div class="l">Genossen für</div><div class="v">' + eur(t.drunkValue, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + num(t.again) + '×</div></div></div>' +
     '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + '</div>' +
-    (items.length ? shown.g.map((g) => '<div class="year"><b>' + esc(g.y) + '</b><i></i></div>' + g.items.map(({ w, d }) =>
+    (items.length ? shown.g.map((g) => '<div class="year"><b>' + esc(g.y) + '</b><i></i></div><div class="mems">' + g.items.map(({ w, d }) =>
       '<div class="mem"><a class="go" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
       '<span class="w">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape].filter(Boolean).join(' · ')) + '</span>' +
       (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">Anlass: ' + esc(d.occasion) + '</span>' : '') + '</span></a>' +
-      '<button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button></div>').join('')).join('') +
+      '<button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button></div>').join('') + '</div>').join('') +
       (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '')
       : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>');
 }
@@ -342,7 +350,7 @@ export function purchaseSheet(S, D, w, p = null) {
 export function wishView(S, D) {
   const list = D.wishlist.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   return head('Noch zu kaufen', 'Wunschliste', '<button class="ibtn" data-act="wish-new" aria-label="Wein zur Wunschliste hinzufügen">' + icon('plus') + '</button>') +
-    (list.length ? '<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">' + list.map((x) => {
+    (list.length ? '<div class="wgrid">' + list.map((x) => {
       const shop = shopFor(x.merchant);
       const link = x.url || (shop ? shopUrl(shop, x) : webUrl(x, x.merchant && !/weingut|online/i.test(x.merchant) ? x.merchant : 'Wein'));
       return '<div class="card" style="padding:14px 16px 10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font:600 17px/1.25 var(--head)">' + esc(x.name) + (x.vintage ? ' ' + esc(x.vintage) : '') + '</span>' +
@@ -416,6 +424,8 @@ function metricSeg(S, g) {
   return '<div class="mseg" role="group" aria-label="Einheit">' + [['eur', 'Euro'], ['qty', 'Flaschen']].map(([k, l]) => '<button data-act="metric" data-g="' + g + '" data-k="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>').join('') + '</div>';
 }
 const box = (title, inner) => '<div class="card chart" style="margin-top:12px"><div class="eyebrow" style="margin-bottom:12px;letter-spacing:.1em">' + esc(title) + '</div>' + inner + '</div>';
+// Diagramm-Raster: auf dem Telefon untereinander, auf breiten Bildschirmen zweispaltig
+const sg = (inner) => '<div class="sgrid">' + inner + '</div>';
 export function statsView(S, D) {
   const tab = S.statTab;
   const seg = '<div class="seg">' + [['stock', 'Bestand'], ['drunk', 'Getrunken'], ['buy', 'Einkauf']].map(([k, l]) => '<button data-act="stat-tab" data-k="' + k + '" aria-pressed="' + (tab === k) + '">' + l + '</button>').join('') + '</div>';
@@ -432,12 +442,12 @@ export function statsView(S, D) {
         const tot = w.purchases.reduce((s, p) => s + p.qty, 0) || 1;
         return w.purchases.map((p) => { const fl2 = w.stock * p.qty / tot; return { m: p.merchant, fl: fl2, eur: fl2 * (p.price != null ? Number(p.price) : (w.avgPrice || 0)) }; });
       });
-      body = box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
+      body = sg(box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
         barBox(S, 'Rebsorten im Keller', groupSum(inS, (w) => w.grape, (w) => w.stock), num, 'grape', (k) => listHref('grape', k)) +
         barBox(S, 'Regionen', groupSum(inS, (w) => w.region, (w) => w.stock), num, 'region', (k) => listHref('region', k)) +
         (vint.length ? box('Jahrgänge im Keller', cols(vint, num, (k) => listHref('vintage', k))) : '') +
         barBox(S, 'Weingüter nach Lagerwert', groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), 'producer', (k) => listHref('producer', k)) +
-        barBox(S, 'Händler im Bestand', groupSum(alloc, (x) => x.m, (x) => (sEur ? x.eur : x.fl)), sEur ? (v) => eur(v, 0) : num, 'smerch', (k) => listHref('merchant', k), metricSeg(S, 'stock'));
+        barBox(S, 'Händler im Bestand', groupSum(alloc, (x) => x.m, (x) => (sEur ? x.eur : x.fl)), sEur ? (v) => eur(v, 0) : num, 'smerch', (k) => listHref('merchant', k), metricSeg(S, 'stock')));
     }
   } else if (tab === 'drunk') {
     const items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
@@ -446,10 +456,10 @@ export function statsView(S, D) {
       const years = groupSum(items.filter((x) => x.d.drunk_on), (x) => yearOf(x.d.drunk_on), (x) => x.d.qty).sort((a, b) => a[0] - b[0]).slice(-8);
       const ba = BUY_AGAIN.map(([k, l]) => [l, items.filter((x) => x.d.buy_again === k).length]).filter((x) => x[1]);
       const fav = groupSum(items.filter((x) => x.d.buy_again === 'ja'), (x) => x.w.producer, () => 1);
-      body = (years.length ? box('Flaschen pro Jahr', cols(years, num, (k) => listHref('dyear', k, 'drunk'))) : '') +
+      body = sg((years.length ? box('Flaschen pro Jahr', cols(years, num, (k) => listHref('dyear', k, 'drunk'))) : '') +
         barBox(S, 'Getrunkene Rebsorten', groupSum(items, (x) => x.w.grape, (x) => x.d.qty), num, 'dgrape', (k) => listHref('grape', k, 'drunk')) +
         (fav.length ? barBox(S, 'Lieblings-Weingüter (nochmal kaufen: ja)', fav, num, 'fav', (k) => listHref('producer', k, 'drunk')) : '') +
-        (ba.length ? barBox(S, 'Nochmal kaufen?', ba, num, 'again', (k) => listHref('again', k, 'drunk')) : '');
+        (ba.length ? barBox(S, 'Nochmal kaufen?', ba, num, 'again', (k) => listHref('again', k, 'drunk')) : ''));
     }
   } else {
     const ps = D.wines.flatMap((w) => w.purchases.map((p) => ({ w, p })));
@@ -460,8 +470,8 @@ export function statsView(S, D) {
       const mval = eurM ? val : (x) => x.p.qty, mfmt = eurM ? (v) => eur(v, 0) : num;
       const spent = ps.reduce((s, x) => s + val(x), 0), bottles = ps.reduce((s, x) => s + x.p.qty, 0), priced = ps.filter((x) => x.p.price != null).reduce((s, x) => s + x.p.qty, 0);
       body = '<div class="kpis"><div class="kpi dark"><div class="l">Ausgegeben</div><div class="v">' + eur(spent, 0) + '</div></div><div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(bottles) + '</div></div><div class="kpi"><div class="l">Ø je Flasche</div><div class="v">' + eur2(priced ? spent / priced : 0) + '</div></div></div>' +
-        boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg(S, 'buy'), cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt, (k) => listHref('byear', k, 'bought'))) +
-        barBox(S, 'Händler', groupSum(ps, (x) => x.p.merchant, mval), mfmt, 'merch', (k) => listHref('merchant', k, 'bought'), metricSeg(S, 'buy'));
+        sg(boxT(eurM ? 'Ausgaben pro Jahr' : 'Flaschen pro Jahr', metricSeg(S, 'buy'), cols(groupSum(ps.filter((x) => x.p.purchased_on), (x) => yearOf(x.p.purchased_on), mval).sort((a, b) => a[0] - b[0]).slice(-8), mfmt, (k) => listHref('byear', k, 'bought'))) +
+        barBox(S, 'Händler', groupSum(ps, (x) => x.p.merchant, mval), mfmt, 'merch', (k) => listHref('merchant', k, 'bought'), metricSeg(S, 'buy')));
     }
   }
   return head('Keller in Zahlen', 'Statistik') + seg + body;

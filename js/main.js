@@ -59,6 +59,7 @@ function onRoute() {
   const prev = S.route;
   if (r.name === 'wine' && prev.name !== 'wine') {
     S.backHref = S.prevHash || '#/regal';
+    S.wineFrom = prev.name;
     S.backLabel = prev.name === 'fach' ? 'Fach ' + prev.arg : prev.name === 'list' ? (prev.params.get('v') || 'Liste') : (BACK_LABEL[prev.name] || 'Zurück');
   }
   if (r.name === 'regal' && r.params.get('q') != null) { S.q = r.params.get('q'); S.showDrop = false; }
@@ -76,6 +77,7 @@ function onRoute() {
 /* ---------- Rendern ---------- */
 function render(top) {
   const app = $('#app');
+  document.body.classList.toggle('authed', api.isLoggedIn());
   if (!api.isLoggedIn()) { app.innerHTML = V.loginView(S.loginError, S.loginBusy, S.email); return; }
   if (!S.loaded) { app.innerHTML = '<p class="empty">Lädt …</p>'; return; }
   const y = window.scrollY, D = S.D, r = S.route;
@@ -98,7 +100,11 @@ function render(top) {
   else if (r.name === 'reco') { html = V.recoView(S, D); tab = 'reco'; }
   else if (r.name === 'wish') { html = V.wishView(S, D); tab = 'wish'; }
   else html = V.homeView(S, D);
-  app.innerHTML = html + V.nav(tab);
+  // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
+  const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', reco: 'reco', wish: 'wish', neu: 'neu' };
+  const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
+  const wide = ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'reco', 'wish'].includes(r.name);
+  app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
   if (r.name === 'regal') renderRegalParts();
   window.scrollTo(0, top ? 0 : y);
 }
