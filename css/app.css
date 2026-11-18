@@ -262,6 +262,23 @@ nav.tabs a.plus[aria-current=page]{box-shadow:0 0 0 4px #EBD3D7}
 .login form{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .err{color:#8A2B33;font:500 13px var(--sans)}
 
+/* ---------- Import, Konto ---------- */
+.btn.danger{background:#8A2B33;border-color:#8A2B33;color:#fff}
+.btn.ghost.danger{background:var(--card);color:#8A2B33;border-color:#E3C4C7}
+.issues{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font:400 13px/1.4 var(--sans)}
+.issues li{padding:8px 12px;border-radius:10px;background:#F6EEDC}
+.issues li.bad{background:#F6E1E3;color:#6E1F27}
+.issues b{font-weight:600;margin-right:4px}
+.xmap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.xmap>.field:first-child{grid-column:1/-1}
+.welcome{padding:24px 20px;margin-top:16px;text-align:center}
+.welcome h2{margin:16px 0 6px;font:600 22px var(--head)}
+.welcome p{margin:0 auto;max-width:460px;color:var(--muted);font:400 14px/1.5 var(--sans)}
+.welcome .note{margin-top:16px}
+.wl-acts{display:flex;flex-direction:column;gap:8px;margin:18px auto 0;max-width:320px}
+.wl-shelf{display:grid;grid-template-columns:repeat(3,48px);gap:6px;justify-content:center;padding:8px;margin:0 auto;width:max-content;border-radius:10px;background:linear-gradient(#E9C9A6,#DDB58C)}
+.wl-shelf i{height:40px;border-radius:5px;background:#D7AE84;box-shadow:inset 0 6px 8px rgba(95,48,22,.28)}
+
 /* ---------- Tablet / iPad ---------- */
 .pairs{display:flex;align-items:stretch;gap:10px}
 .pc{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}

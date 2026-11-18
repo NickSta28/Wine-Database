@@ -3,6 +3,8 @@ import * as api from './api.js';
 import { $, $$, esc, today, debounce, uuid, download, shrinkImage, b64ToBlob } from './util.js';
 import { derive, faecher, matcher, topSearches, CAP_COLORS } from './model.js';
 import * as V from './views.js';
+import { readXlsx, readCsv, writeXlsx } from './xlsx.js';
+import * as XL from './excel.js';
 
 const PREFS = 'wd_prefs_v1';
 const S = {
@@ -188,6 +190,11 @@ function syncCapUi(name) {
 const actions = {
   async settings() { openSheet(V.settingsSheet(S, S.D)); },
   close() { closeSheet(); },
+  'xl-map'() { S.xl.mapping = !S.xl.mapping; S.xl.keepScroll = false; openSheet(V.xlSheet(S)); S.xl.keepScroll = true; },
+  async 'xl-run'() { const j = S.xl.res.j; S.xl = null; await runImport(j); },
+  'export-xlsx'() { xlsxDownload('weinkeller-' + today() + '.xlsx', XL.exportSheets(S.D)); },
+  pw() { openSheet(V.pwSheet()); },
+  wipe() { openSheet(V.wipeSheet(S.D)); },
   logout() { api.signOut(); S.loaded = false; S.data = null; S.urls = {}; closeSheet(); location.hash = '#/'; render(); },
   export() {
     const d = S.data;
@@ -251,6 +258,27 @@ const actions = {
 
 /* ---------- Formulare ---------- */
 const forms = {
+  async pw(f) {
+    const [p0, p1, p2] = ['pw0', 'pw1', 'pw2'].map((k) => f.elements[k].value);
+    if (p1 !== p2) { openSheet(V.pwSheet('Die neuen Passwörter stimmen nicht überein.')); return; }
+    if (p1.length < 8) { openSheet(V.pwSheet('Bitte mindestens 8 Zeichen.')); return; }
+    try { await api.changePassword(p0, p1); } catch (e) { openSheet(V.pwSheet(errMsg(e))); return; }
+    closeSheet(); toast('Passwort geändert');
+  },
+  async wipe(f) {
+    if (f.elements.ok.value.trim().toUpperCase() !== 'LÖSCHEN') { toast('Bitte LÖSCHEN eintippen', true); return; }
+    openSheet(V.progressSheet('Daten werden gelöscht', 'Etiketten …', 10));
+    try {
+      const own = { user_id: 'eq.' + uid() };
+      const labels = S.data.wines.map((w) => w.label_path).filter(Boolean);
+      for (let i = 0; i < labels.length; i += 100) await api.deleteLabels(labels.slice(i, i + 100));
+      for (const [t, pct] of [['drinks', 30], ['purchases', 50], ['wines', 70], ['producers', 85], ['wishlist', 95]]) {
+        const tx = $('#prog-text'), b = $('#prog-bar'); if (tx) tx.textContent = 'Lösche ' + t + ' …'; if (b) b.style.width = pct + '%';
+        await api.remove(t, own);
+      }
+      S.urls = {}; await load(); closeSheet(); location.hash = '#/'; render(); toast('Alle Daten gelöscht');
+    } catch (e) { console.error(e); closeSheet(); toast('Löschen abgebrochen: ' + errMsg(e), true); await guard(reload); }
+  },
   async login(f) {
     S.email = f.elements.email.value.trim(); S.loginBusy = true; S.loginError = ''; render();
     try { await api.signIn(S.email, f.elements.password.value); S.loginBusy = false; await load(); onRoute(); }
@@ -345,8 +373,12 @@ const changes = {
       await reload(); toast('Etikett gespeichert');
     });
   },
+  // Excel-Zuordnung: Blatt bzw. Spalte geändert → Vorschau neu berechnen
+  'xl-sheet'(el) { XL.setSheet(S.xl.book, S.xl.plan, el.dataset.role, el.value); xlRebuild(); },
+  'xl-col'(el) { const m = S.xl.plan.maps[el.dataset.role]; if (el.value === '') delete m[el.dataset.f]; else m[el.dataset.f] = Number(el.value); xlRebuild(); },
   async import(input) {
     const file = input.files && input.files[0]; if (!file) return;
+    if (!/\.json$/i.test(file.name) && file.type !== 'application/json') return startExcel(file);
     let j;
     try { j = JSON.parse(await file.text()); } catch { toast('Die Datei ist kein gültiges JSON', true); return; }
     if (!j || j.format !== 'wine-database' || !Array.isArray(j.wines)) { toast('Keine Wine-Database-Importdatei', true); return; }
@@ -354,6 +386,28 @@ const changes = {
     await runImport(j);
   }
 };
+
+/* ---------- Excel-Import ---------- */
+async function startExcel(file) {
+  let book;
+  try {
+    book = /\.csv$/i.test(file.name) || file.type === 'text/csv' ? readCsv(await file.text()) : await readXlsx(await file.arrayBuffer());
+  } catch (e) { console.error(e); toast(/xlsx|Excel|Browser/.test(errMsg(e)) ? errMsg(e) : 'Die Datei konnte nicht gelesen werden', true); return; }
+  S.xl = { name: file.name, book, plan: XL.analyse(book), mapping: false };
+  xlRebuild(); S.xl.keepScroll = true;
+}
+function xlRebuild() {
+  const existing = { wines: S.D.wines.map((w) => ({ producer: w.producer, name: w.name, vintage: w.vintage })), wishlist: S.data.wishlist };
+  S.xl.res = XL.build(S.xl.book, S.xl.plan, existing);
+  const box = $('#layer .sheet'), y = box ? box.scrollTop : 0;
+  openSheet(V.xlSheet(S));
+  const nb = $('#layer .sheet'); if (nb && S.xl.keepScroll) nb.scrollTop = y;
+}
+function xlsxDownload(name, sheets) {
+  const blob = writeXlsx(sheets), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
 
 async function runImport(j) {
   const steps = j.wines.length + Object.keys(j.labels || {}).length + 4;
@@ -425,7 +479,7 @@ document.addEventListener('submit', (ev) => {
 });
 document.addEventListener('change', (ev) => {
   const el = ev.target.closest('[data-change]'); if (!el) return;
-  const fn = changes[el.dataset.change]; if (fn) guard(() => fn(el)).finally(() => { el.value = ''; });
+  const fn = changes[el.dataset.change]; if (fn) guard(() => fn(el)).finally(() => { if (el.type === 'file') el.value = ''; });
 });
 const refreshShelf = debounce(() => renderRegalParts(), 90);
 document.addEventListener('input', (ev) => {

@@ -42,6 +42,13 @@ export async function signIn(email, password) {
   return session;
 }
 export function signOut() { saveSession(null); }
+// Passwort ändern: altes Passwort erst prüfen, dann neues setzen
+export async function changePassword(current, next) {
+  if (!session) throw new ApiError('Nicht angemeldet', 401);
+  try { saveSession(await authCall('password', { email: session.user.email, password: current })); }
+  catch (e) { throw new ApiError(e.status === 400 ? 'Aktuelles Passwort ist falsch' : e.message, e.status); }
+  await req('PUT', '/auth/v1/user', { body: { password: next } });
+}
 
 let refreshing = null;
 async function refresh() {

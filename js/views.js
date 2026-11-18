@@ -2,6 +2,7 @@
 import { esc, eur, eur2, fl, num, deDate, deDayMonth, yearOf, plural, today } from './util.js';
 import { TYPES, STYLES, TYPE_COLOR, CAP_COLORS, BUY_AGAIN, faecher, layout, matcher, totals, groupSum, capOf, tintOf } from './model.js';
 import { VERSION } from './version.js';
+import { ROLES, headers } from './excel.js';
 
 /* ---------- Icons ---------- */
 const P = {
@@ -68,9 +69,14 @@ export function loginView(err, busy, email) {
 export function homeView(S, D) {
   const t = totals(D);
   if (!D.wines.length) {
-    return head('Mein Keller', 'Übersicht', settingsBtn()) + homeSeg('home') +
-      '<div class="empty"><b>Noch keine Weine</b>Lege deinen ersten Wein über das + an oder importiere deine Daten in den Einstellungen.</div>' +
-      '<div class="btns"><a class="btn" href="#/neu">Wein anlegen</a><button class="btn ghost" data-act="settings">Daten importieren</button></div>';
+    // Erster Start: leeres Regal mit drei Wegen
+    return head('Mein Keller', 'Willkommen', settingsBtn()) +
+      '<div class="card welcome"><div class="wl-shelf" aria-hidden="true"><i></i><i></i><i></i></div><h2>Dein Weinregal ist noch leer</h2>' +
+      '<p>Du hast schon eine Liste in Excel? Dann importiere sie – die App erkennt die Spalten und zeigt vor dem Import eine Vorschau. Sonst lege einfach deinen ersten Wein an.</p>' +
+      '<div class="wl-acts"><label class="btn" for="ximp-home">' + icon('plus') + 'Excel-Liste importieren</label><input id="ximp-home" class="sr" type="file" accept="' + IMPORT_ACCEPT + '" data-change="import">' +
+      '<a class="btn ghost" href="#/neu">Ersten Wein anlegen</a></div>' +
+      '<p class="note">Noch keine Liste? <a href="' + TEMPLATE_URL + '" download style="color:var(--wine);font-weight:600">Vorlage herunterladen</a> – Mindestangaben: Weingut, Wein, Weinart, Rebsorte, Flaschen im Keller.</p></div>' +
+      (D.wishlist.length ? '<div class="btns"><a class="btn ghost" href="#/wunschliste">' + icon('heart') + 'Zur Wunschliste (' + D.wishlist.length + ')</a></div>' : '');
   }
   const order = ['Weißwein', 'Rotwein', 'Champagner', 'Schaumwein', 'Rosé', 'Süßwein'].filter((k) => t.byType[k]);
   const bar = order.map((k) => '<i style="width:' + (t.byType[k] / t.stock * 100).toFixed(1) + '%;background:' + TYPE_COLOR[k] + '"></i>').join('');
@@ -580,15 +586,66 @@ export function recoView(S, D) {
 }
 
 /* ---------- Einstellungen / Import ---------- */
+export const TEMPLATE_URL = 'vorlage/Weinkeller-Importvorlage.xlsx';
+export const IMPORT_ACCEPT = '.xlsx,.xlsm,.csv,.json,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 export function settingsSheet(S, D) {
   const t = totals(D);
   return '<h2>Einstellungen</h2><div class="card" style="padding:14px 16px"><div class="l eyebrow" style="letter-spacing:.08em">Angemeldet als</div><div style="font-weight:500;margin-top:2px">' + esc(S.email) + '</div>' +
     '<div class="note">' + plural(D.wines.length, 'Wein', 'Weine') + ' · ' + fl(t.stock) + ' im Keller · ' + plural(D.wishlist.length, 'Wunsch', 'Wünsche') + '</div></div>' +
-    '<div class="sec">Daten</div><div class="fgrid">' +
-    '<label class="btn ghost" for="imp">Import-Datei laden (.json)</label><input id="imp" class="sr" type="file" accept="application/json,.json" data-change="import">' +
+    '<div class="sec">Importieren</div><div class="fgrid">' +
+    '<label class="btn ghost" for="imp">Excel-Liste oder Sicherung importieren</label><input id="imp" class="sr" type="file" accept="' + IMPORT_ACCEPT + '" data-change="import">' +
+    '<a class="btn ghost" href="' + TEMPLATE_URL + '" download>Excel-Vorlage herunterladen</a></div>' +
+    '<p class="note">Excel (.xlsx, .xlsm) oder CSV: Vor dem Import siehst du eine Vorschau. Weine, die schon in deinem Keller sind, werden übersprungen.</p>' +
+    '<div class="sec">Exportieren</div><div class="fgrid">' +
+    '<button class="btn ghost" data-act="export-xlsx">Als Excel exportieren</button>' +
     '<button class="btn ghost" data-act="export">Sicherung herunterladen (ohne Etiketten)</button></div>' +
-    '<p class="note">Der Import fügt Weine, Käufe, Getrunken-Einträge, Wunschliste und Etiketten aus einer Wine-Database-Datei zu deinem Konto hinzu.</p>' +
-    '<div class="btns" style="margin-top:22px"><button class="btn ghost" data-act="logout">Abmelden</button></div><p class="note" style="text-align:center">Version ' + VERSION + '</p>';
+    '<p class="note">Die Excel-Datei hat den Aufbau der Vorlage und lässt sich wieder importieren.</p>' +
+    '<div class="sec">Konto</div><div class="fgrid"><button class="btn ghost" data-act="pw">Passwort ändern</button><button class="btn ghost" data-act="logout">Abmelden</button></div>' +
+    '<div class="btns" style="margin-top:22px"><button class="btn ghost danger" data-act="wipe">Alle meine Daten löschen</button></div>' +
+    '<p class="note" style="text-align:center">Version ' + VERSION + '</p>';
+}
+export function pwSheet(err) {
+  return '<h2>Passwort ändern</h2><form data-form="pw" style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="field"><label for="pw0">Aktuelles Passwort</label><input id="pw0" name="pw0" type="password" autocomplete="current-password" required></div>' +
+    '<div class="field"><label for="pw1">Neues Passwort (mind. 8 Zeichen)</label><input id="pw1" name="pw1" type="password" autocomplete="new-password" minlength="8" required></div>' +
+    '<div class="field"><label for="pw2">Neues Passwort wiederholen</label><input id="pw2" name="pw2" type="password" autocomplete="new-password" minlength="8" required></div>' +
+    (err ? '<p class="err">' + esc(err) + '</p>' : '') +
+    '<div class="btns"><button class="btn ghost" type="button" data-act="settings">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+}
+export function wipeSheet(D) {
+  return '<h2>Alle Daten löschen</h2><p class="sub">Löscht ' + plural(D.wines.length, 'Wein', 'Weine') + ' mit allen Käufen, Getrunken-Einträgen und Etiketten sowie ' + plural(D.wishlist.length, 'Wunsch', 'Wünsche') + ' aus deinem Konto. Das lässt sich nicht rückgängig machen. Das Konto selbst bleibt bestehen.</p>' +
+    '<div class="fgrid" style="margin-top:14px"><button class="btn ghost" data-act="export-xlsx">Vorher als Excel sichern</button></div>' +
+    '<form data-form="wipe" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><div class="field"><label for="wipe-ok">Zur Bestätigung LÖSCHEN eintippen</label><input id="wipe-ok" name="ok" autocomplete="off" autocapitalize="characters" required></div>' +
+    '<div class="btns"><button class="btn ghost" type="button" data-act="settings">Abbrechen</button><button class="btn danger" type="submit">Endgültig löschen</button></div></form>';
+}
+// Excel-Import: Vorschau oder Zuordnung
+export function xlSheet(S) {
+  const X = S.xl, st = X.res.stats;
+  const roles = Object.keys(ROLES);
+  if (X.mapping) {
+    const sheetSel = (role) => '<select data-change="xl-sheet" data-role="' + role + '"><option value="">— nicht vorhanden —</option>' +
+      X.book.sheets.map((s, i) => s.hidden ? '' : '<option value="' + i + '"' + (X.plan.roles[role] === i ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select>';
+    return '<h2>Zuordnung</h2><p class="sub">Welches Blatt und welche Spalte gehört wohin? Felder mit * sind nötig.</p>' +
+      roles.map((role) => '<div class="sec">' + ROLES[role].label + '</div><div class="xmap"><div class="field"><label>Blatt</label>' + sheetSel(role) + '</div>' +
+        (X.plan.roles[role] != null ? (() => { const hs = headers(X.book, X.plan, role); return ROLES[role].fields.map(([f, syn, req]) =>
+          '<div class="field"><label>' + esc(syn[0]) + (req ? ' *' : '') + '</label><select data-change="xl-col" data-role="' + role + '" data-f="' + f + '"><option value="">—</option>' +
+          hs.map((h, i) => '<option value="' + i + '"' + ((X.plan.maps[role] || {})[f] === i ? ' selected' : '') + '>' + esc(h) + '</option>').join('') + '</select></div>').join(''); })() : '') + '</div>').join('') +
+      '<div class="btns"><button class="btn" data-act="xl-map">Fertig – zur Vorschau</button></div>';
+  }
+  const bad = X.res.issues.filter((x) => x.bad), warn = X.res.issues.filter((x) => !x.bad);
+  const list = (arr, cls) => arr.slice(0, 25).map((x) => '<li class="' + cls + '"><b>' + esc(x.where) + '</b> ' + esc(x.text) + '</li>').join('') + (arr.length > 25 ? '<li class="' + cls + '">… und ' + (arr.length - 25) + ' weitere</li>' : '');
+  const found = roles.filter((r) => X.plan.roles[r] != null).map((r) => ROLES[r].label + ' ← „' + esc(X.book.sheets[X.plan.roles[r]].name) + '“').join(' · ');
+  const can = st.wines + st.wishlist > 0;
+  return '<h2>Excel-Import</h2><p class="sub">' + esc(X.name) + (found ? '<br>' + found : '') + '</p>' +
+    '<div class="kpis" style="margin-top:12px"><div class="kpi dark"><div class="l">Neue Weine</div><div class="v">' + num(st.wines) + '</div></div>' +
+    '<div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(st.bottles) + '</div></div><div class="kpi"><div class="l">Wünsche</div><div class="v">' + num(st.wishlist) + '</div></div></div>' +
+    '<p class="note">' + [plural(st.producers, 'Weingut', 'Weingüter'), plural(st.purchases, 'Kauf', 'Käufe'), plural(st.drinks, 'Getrunken-Eintrag', 'Getrunken-Einträge')].join(' · ') +
+    (st.skippedExisting ? ' · ' + plural(st.skippedExisting, 'Wein', 'Weine') + ' schon im Keller (übersprungen)' : '') + (st.wishSkipped ? ' · ' + plural(st.wishSkipped, 'Wunsch', 'Wünsche') + ' schon vorhanden' : '') + '</p>' +
+    (bad.length ? '<div class="sec">Nicht übernommen (' + bad.length + ')</div><ul class="issues">' + list(bad, 'bad') + '</ul>' : '') +
+    (warn.length ? '<div class="sec">Hinweise (' + warn.length + ')</div><ul class="issues">' + list(warn, '') + '</ul>' : '') +
+    (!bad.length && !warn.length && can ? '<p class="note" style="color:#2F6B45;font-weight:600">Alles erkannt – keine Probleme gefunden.</p>' : '') +
+    '<div class="btns"><button class="btn ghost" data-act="xl-map">Zuordnung prüfen</button>' +
+    '<button class="btn" data-act="xl-run"' + (can ? '' : ' disabled') + '>' + (can ? 'Importieren' : 'Nichts zu importieren') + '</button></div>';
 }
 export function progressSheet(title, text, pct) {
   return '<h2>' + esc(title) + '</h2><p class="sub" id="prog-text">' + esc(text) + '</p><div class="progress"><i id="prog-bar" style="width:' + pct + '%"></i></div>';
