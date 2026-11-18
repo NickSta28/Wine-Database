@@ -1,2 +1,2 @@
 // Bei jeder Veröffentlichung erhöhen (zusammen mit CACHE in sw.js)
-export const VERSION = '1.0.18';
+export const VERSION = '1.0.19';

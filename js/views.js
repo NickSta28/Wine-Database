@@ -179,7 +179,8 @@ function wineRow(w, mode, date) {
 }
 
 /* ---------- Fach / Trefferliste ---------- */
-// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought', year, split }
+// opts: { eyebrow, back: [href, label], mini, scope: 'stock' | 'drunk' | 'bought', year, split, showBack, sel }
+// sel: Wein-ID, die in der Liste markiert wird (Liste | Detail auf dem iPad)
 // split: rechte Spalte der geteilten Ansicht (iPad) – ohne Zurück-Knopf und Mini-Fach
 // Bei getrunken/gekauft: Standard-Sortierung nach Datum, zuletzt getrunkener/gekaufter Wein zuerst
 export function fachView(S, D, name, list, opts = {}) {
@@ -197,7 +198,7 @@ export function fachView(S, D, name, list, opts = {}) {
   // Mini-Fach: gleiche Stufe und Reihenfolge wie im Regal, Kapselfarben je Weingut
   const showMini = o.mini && !o.split;
   const mini = showMini ? stackHtml(list.map((w) => ({ w, hit: false })), 's20', capOf) : '';
-  return (o.split ? '' : backBtn(o.back[0], o.back[1])) +
+  return (o.split && !o.showBack ? '' : backBtn(o.back[0], o.back[1])) +
     '<div class="top" style="align-items:center"><div><div class="eyebrow">' + esc(o.eyebrow) + '</div><h1 class="title">' + esc(name) + '</h1>' +
     '<div class="sub">' + plural(nProd, 'Weingut', 'Weingüter') + ' · ' + plural(nReg, 'Region', 'Regionen') + '</div></div>' +
     (showMini ? '<div class="mini" aria-hidden="true"><div class="in">' + mini + '</div></div>' : '') + '</div>' +
@@ -207,7 +208,7 @@ export function fachView(S, D, name, list, opts = {}) {
       : '<div class="kpi"><div class="l">' + (o.scope === 'drunk' ? 'Getrunken' : 'Gekauft') + '</div><div class="v">' + fl(list.reduce((s, w) => s + (o.scope === 'drunk' ? w.drunk : w.bought), 0)) + '</div></div><div class="kpi"><div class="l">Noch im Keller</div><div class="v">' + fl(b) + '</div></div>') + '</div>' +
     '<div class="chips" style="margin-top:16px">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
     (list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
-      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => wineRow(w, o.scope, dateOf(w))).join('') + '</div>'
+      '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => { const r = wineRow(w, o.scope, dateOf(w)); return w.id === o.sel ? r.replace('<a class="row"', '<a class="row sel" aria-current="true"') : r; }).join('') + '</div>'
       : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
       : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
 }
@@ -221,7 +222,7 @@ export function fachSplit(S, D, name, list) {
 }
 
 /* ---------- Detail ---------- */
-export function detailView(S, D, w) {
+export function detailView(S, D, w, opts = {}) {
   const typeBg = { 'Weißwein': '#F1E3B8', 'Rotwein': '#F3DDDF', 'Rosé': '#F6E1E6', 'Champagner': '#E6EAD8', 'Schaumwein': '#E6EAD8', 'Süßwein': '#F1E3B8' }[w.wine_type] || '#E9E1D2';
   const ba = w.buyAgain ? BUY_AGAIN.find((x) => x[0] === w.buyAgain)[1] : '';
   const facts = [['Weingut', w.producer], ['Region', w.region], ['Jahrgang', w.vintage], ['Geschmack', w.style],
@@ -237,7 +238,7 @@ export function detailView(S, D, w) {
       '<span class="s">' + esc([deDate(e.x.drunk_on) || 'Datum unbekannt', e.x.occasion].filter(Boolean).join(' · ')) + '</span>' + (e.x.note ? '<span class="n" style="display:block">„' + esc(e.x.note) + '“</span>' : '') + '</span>' +
       '<button class="del" data-act="edit-drink" data-id="' + e.x.id + '" aria-label="Getrunken-Eintrag bearbeiten">' + icon('edit') + '</button></div>';
   const url = w.label_path && S.urls[w.label_path];
-  return '<div style="display:flex;justify-content:space-between;align-items:center">' + backBtn(S.backHref || '#/regal', S.backLabel || 'Zurück') +
+  return '<div style="display:flex;justify-content:space-between;align-items:center">' + (opts.split ? '<span></span>' : backBtn(S.backHref || '#/regal', S.backLabel || 'Zurück')) +
     '<button class="ibtn" data-act="edit-wine" data-id="' + w.id + '" aria-label="Wein bearbeiten" style="margin-top:-8px">' + icon('edit') + '</button></div>' +
     '<div class="label-box">' + (url ? '<img src="' + esc(url) + '" alt="Etikett ' + esc(w.name) + '">' : '<label class="label-ph" for="lblfile">' + icon('camera') + 'Etikett fotografieren</label>') + '</div>' +
     '<div style="display:flex;justify-content:center"><label class="back" for="lblfile" style="margin:6px 0 0;color:var(--muted);font-size:13px;cursor:pointer">' + icon('camera') + (url ? 'Etikett neu fotografieren' : 'Foto auswählen') + '</label>' +

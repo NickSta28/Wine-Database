@@ -57,6 +57,8 @@ const BACK_LABEL = { home: 'Übersicht', regal: 'Weinregal', search: 'Suche', dr
 function onRoute() {
   const r = parseHash();
   const prev = S.route;
+  // iPad quer: Wein aus einer Liste geöffnet → Liste links, Detail rechts; beim Weiterklicken bleibt die Liste
+  if (r.name === 'wine' && prev.name !== 'wine') S.wineCtx = ['fach', 'list', 'search'].includes(prev.name) ? prev : null;
   if (r.name === 'wine' && prev.name !== 'wine') {
     S.backHref = S.prevHash || '#/regal';
     S.wineFrom = prev.name;
@@ -81,20 +83,22 @@ function render(top) {
   if (!api.isLoggedIn()) { app.innerHTML = V.loginView(S.loginError, S.loginBusy, S.email); return; }
   if (!S.loaded) { app.innerHTML = '<p class="empty">Lädt …</p>'; return; }
   const y = window.scrollY, D = S.D, r = S.route;
+  S.keepR = $('.wsplit .split-r')?.scrollTop || 0;
   let html = '', tab = 'home';
   if (r.name === 'regal') html = V.regalView(S, D);
   else if (r.name === 'fach' && S.wide) html = V.fachSplit(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
-  else if (r.name === 'fach') html = V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
-  else if (r.name === 'search') { const m = matcher(S.q); html = V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false }); }
-  else if (r.name === 'list') {
-    const k = V.LIST_FIELDS[r.params.get('k')] ? r.params.get('k') : 'grape', f = V.LIST_FIELDS[k], v = r.params.get('v') || '';
-    const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
-    const inScope = scope === 'drunk' ? (w) => w.drunk > 0 : scope === 'bought' ? (w) => w.bought > 0 : (w) => w.stock > 0;
-    const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
-    html = V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '' });
-    tab = 'stats';
+  else if (['fach', 'search', 'list'].includes(r.name)) { html = listView(r); if (r.name === 'list') tab = 'stats'; }
+  else if (r.name === 'wine') {
+    const w = D.byId.get(r.arg), c = S.wineCtx;
+    if (!w) html = '<div class="empty"><b>Wein nicht gefunden</b></div>';
+    else if (S.wide && c) {
+      // Zurück aus der Liste: Fach → Regal mit Fach, Suche → Weinregal, Statistik-Liste → Statistik
+      const back = c.name === 'fach' ? ['#/fach/' + encodeURIComponent(c.arg), 'Regalansicht'] : c.name === 'search' ? ['#/regal', 'Weinregal'] : ['#/statistik', 'Statistik'];
+      html = '<div class="split wsplit"><div class="split-l pane">' + listView(c, { split: true, showBack: true, back, sel: w.id }) +
+        '</div><div class="split-r pane">' + V.detailView(S, D, w, { split: true }) + '</div></div>';
+      if (c.name === 'list') tab = 'stats';
+    } else html = V.detailView(S, D, w);
   }
-  else if (r.name === 'wine') { const w = D.byId.get(r.arg); html = w ? V.detailView(S, D, w) : '<div class="empty"><b>Wein nicht gefunden</b></div>'; }
   else if (r.name === 'drunk') html = V.drunkView(S, D);
   else if (r.name === 'neu') { html = V.newView(S, D); tab = 'neu'; }
   else if (r.name === 'stats') { html = V.statsView(S, D); tab = 'stats'; }
@@ -104,10 +108,25 @@ function render(top) {
   // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
   const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', reco: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
-  const wide = ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'reco', 'wish'].includes(r.name);
+  const split = html.startsWith('<div class="split wsplit">');
+  const wide = split || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'reco', 'wish'].includes(r.name);
+  const oldL = $('.wsplit .split-l'), keepL = split && oldL ? oldL.scrollTop : 0;
   app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
+  // Liste links behält beim Durchklicken ihre Position, rechts startet das Detail oben
+  if (split) { $('.wsplit .split-l').scrollTop = keepL; if (!top) $('.wsplit .split-r').scrollTop = S.keepR || 0; }
   if (r.name === 'regal') renderRegalParts();
   window.scrollTo(0, top ? 0 : y);
+}
+// Listen (Fach, Suche, Statistik-Liste); extra: zusätzliche Optionen für die geteilte Ansicht
+function listView(r, extra = {}) {
+  const D = S.D;
+  if (r.name === 'fach') return V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || [], extra);
+  if (r.name === 'search') { const m = matcher(S.q); return V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false, ...extra }); }
+  const k = V.LIST_FIELDS[r.params.get('k')] ? r.params.get('k') : 'grape', f = V.LIST_FIELDS[k], v = r.params.get('v') || '';
+  const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
+  const inScope = scope === 'drunk' ? (w) => w.drunk > 0 : scope === 'bought' ? (w) => w.bought > 0 : (w) => w.stock > 0;
+  const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
+  return V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '', ...extra });
 }
 function renderRegalParts() {
   const D = S.D;
