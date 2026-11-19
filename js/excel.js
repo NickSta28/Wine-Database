@@ -24,7 +24,8 @@ export const ROLES = {
   drinks: { label: 'Getrunken', match: /^(getrunken|verkostung|verkostungen|trink|konsum|probiert)/, fields: [
     ['producer', P, true], ['name', N, true], ['vintage', Y],
     ['date', ['Datum', 'getrunken am', 'trinkdatum', 'wann']], ['qty', ['Anzahl', 'menge', 'flaschen']], ['note', NO],
-    ['buy_again', ['Nochmal kaufen', 'wieder kaufen', 'nachkaufen', 'erneut kaufen']], ['occasion', ['Anlass', 'gelegenheit', 'event']]] },
+    ['buy_again', ['Nochmal kaufen', 'wieder kaufen', 'nachkaufen', 'erneut kaufen']], ['occasion', ['Anlass', 'gelegenheit', 'event']],
+    ['rating', ['Bewertung', 'sterne', 'punkte', 'note 1 5', 'rating']], ['maturity', ['Reife', 'trinkreife', 'reifegrad']]] },
   wishlist: { label: 'Wunschliste', match: /^(wunsch|wuensche|merkliste|probieren)/, fields: [
     ['producer', P], ['name', N, true], ['vintage', Y], ['wine_type', T], ['grape', G], ['region', R], ['merchant', M],
     ['price', ['Preis', ...PR.slice(1)]], ['url', ['Link', 'url', 'shop link', 'webseite']],
@@ -119,6 +120,7 @@ const TYPE_SYN = [
   ['Süßwein', /^(suesswein|dessertwein|edelsuess|eiswein|suess|portwein|port|sherry|madeira|tokaji|sauternes|beerenauslese|trockenbeerenauslese)$/]];
 const typeOf = (v) => { const s = norm(v); if (!s) return null; const t = TYPES.find((x) => norm(x) === s); if (t) return t; const m = TYPE_SYN.find(([, re]) => re.test(s)); return m ? m[0] : undefined; };
 const againOf = (v) => { const s = norm(v); if (!s) return null; if (/^(ja|j|yes|y|x|1|true|wahr|unbedingt)$/.test(s)) return 'ja'; if (/^(nein|n|no|0|false|falsch|nie)$/.test(s)) return 'nein'; if (/^(evtl|eventuell|vielleicht|mal sehen|ggf)$/.test(s)) return 'evtl'; return undefined; };
+const maturityOf = (v) => { const s = norm(v); if (!s) return null; if (/^(zu jung|jung|young)$/.test(s)) return 'jung'; if (/^(genau richtig|richtig|ok|perfekt|reif|trinkreif)$/.test(s)) return 'ok'; if (/^(drueber|darueber|zu alt|ueber dem hoehepunkt|alt|over)$/.test(s)) return 'drueber'; return undefined; };
 const vintageOf = (v) => { const s = str(v); if (!s || /^(nv|n v|ohne|mv|sa)$/i.test(norm(s))) return null; const n = intOf(v); return n >= 1900 && n <= 2100 ? n : undefined; };
 // Beispielzeilen der Vorlage (nur in der ersten Datenzeile ignoriert)
 const EXAMPLES = new Set();
@@ -221,7 +223,9 @@ export function build(book, plan, existing) {
       if (!(qty > 0)) { warn('drinks', o._row, 'Anzahl „' + str(o.qty) + '“ ungültig – als 1 übernommen'); qty = 1; }
       let d = dateOf(o.date, book.date1904); if (d === undefined) { warn('drinks', o._row, 'Datum „' + str(o.date) + '“ nicht erkannt – ohne Datum übernommen'); d = null; }
       let again = againOf(o.buy_again); if (again === undefined) { warn('drinks', o._row, '„Nochmal kaufen“ = „' + str(o.buy_again) + '“ nicht erkannt (ja, evtl, nein)'); again = null; }
-      j.drinks.push({ wine: w.key, drunk_on: d, qty, note: str(o.note) || null, buy_again: again, occasion: str(o.occasion) || null });
+      let rating = intOf(o.rating); if (rating != null && !(rating >= 1 && rating <= 5)) { warn('drinks', o._row, 'Bewertung „' + str(o.rating) + '“ nicht erkannt (1 bis 5)'); rating = null; }
+      let maturity = maturityOf(o.maturity); if (maturity === undefined) { warn('drinks', o._row, 'Reife „' + str(o.maturity) + '“ nicht erkannt (zu jung, genau richtig, drüber)'); maturity = null; }
+      j.drinks.push({ wine: w.key, drunk_on: d, qty, note: str(o.note) || null, buy_again: again, occasion: str(o.occasion) || null, rating, maturity });
       w._drunk = (w._drunk || 0) + qty;
     }
   }
@@ -257,6 +261,7 @@ export function build(book, plan, existing) {
   return { j, issues, stats };
 }
 
+const MAT_X = { jung: 'zu jung', ok: 'genau richtig', drueber: 'drüber' };
 /* ---------- Export in Vorlagen-Struktur (wieder importierbar) ---------- */
 export function exportSheets(D) {
   const name = (w) => [w.producer || '', w.name, w.vintage || ''];
@@ -269,8 +274,8 @@ export function exportSheets(D) {
       rows: wines.map((w) => [...name(w), w.wine_type, w.grape || '', w.region || '', w.style || '', w.stock, w.avgPrice != null ? Math.round(w.avgPrice * 100) / 100 : '', w.merchants.join(', '), w.my_note || '']) },
     { name: 'Käufe', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Kaufdatum', w: 12, date: true }, { h: 'Händler', w: 18 }, { h: 'Anzahl', w: 9 }, { h: 'Preis je Flasche', w: 12, eur: true }],
       rows: D.purchases.filter((p) => byId.has(p.wine_id)).sort(sortD('purchased_on')).map((p) => [...name(byId.get(p.wine_id)), p.purchased_on || '', p.merchant || '', p.qty, p.price != null ? Number(p.price) : '']) },
-    { name: 'Getrunken', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Datum', w: 12, date: true }, { h: 'Anzahl', w: 9 }, { h: 'Notiz', w: 40 }, { h: 'Nochmal kaufen', w: 12 }, { h: 'Anlass', w: 18 }],
-      rows: D.drinks.filter((d) => byId.has(d.wine_id)).sort(sortD('drunk_on')).map((d) => [...name(byId.get(d.wine_id)), d.drunk_on || '', d.qty, d.note || '', d.buy_again || '', d.occasion || '']) },
+    { name: 'Getrunken', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Datum', w: 12, date: true }, { h: 'Anzahl', w: 9 }, { h: 'Notiz', w: 40 }, { h: 'Nochmal kaufen', w: 12 }, { h: 'Anlass', w: 18 }, { h: 'Bewertung', w: 10 }, { h: 'Reife', w: 14 }],
+      rows: D.drinks.filter((d) => byId.has(d.wine_id)).sort(sortD('drunk_on')).map((d) => [...name(byId.get(d.wine_id)), d.drunk_on || '', d.qty, d.note || '', d.buy_again || '', d.occasion || '', d.rating || '', MAT_X[d.maturity] || '']) },
     { name: 'Wunschliste', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Weinart', w: 13 }, { h: 'Rebsorte', w: 18 }, { h: 'Region', w: 16 }, { h: 'Händler', w: 16 },
       { h: 'Preis', w: 11, eur: true }, { h: 'Link', w: 30 }, { h: 'Idee von', w: 18 }, { h: 'Notiz', w: 34 }],
       rows: D.wishlist.map((x) => [x.producer || '', x.name, x.vintage || '', x.wine_type || '', x.grape || '', x.region || '', x.merchant || '', x.price != null ? Number(x.price) : '', x.url || '', x.idea_source || '', x.note || '']) }

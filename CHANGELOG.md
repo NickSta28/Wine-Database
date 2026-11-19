@@ -3,6 +3,14 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.2.0 – 19.11.2026 · Weinjahr, Preis pro Flasche, Bewertung
+- „Dein Weinjahr“: Rückblick je Jahr mit getrunkenen und gekauften Flaschen, Genusswert, Vergleich zum Vorjahr, Monat für Monat, „Neu entdeckt“ (Regionen, Weingüter, Rebsorten – Absprung zum ersten Wein), Rebsorten, Lieblinge, „Nochmal kaufen“ und Anlässe
+- Einstieg: schmale Karte über den Statistik-Reitern, auf der Übersicht vom 1. Dezember bis 31. Januar eine Rückblick-Karte (ausblendbar), auf dem iPad eigener Eintrag in der Seitenleiste
+- Statistik: „Preis pro Flasche“ in fünf Gruppen ohne Überschneidung (unter 10 €, 10–14,99 €, 15–24,99 €, 25–39,99 €, ab 40 €), umschaltbar Flaschen/Wert, im Bestand und im Einkauf, mit Absprung zur Weinliste
+- Getrunken: Bewertung mit 1–5 Sternen und Reife („zu jung“, „genau richtig“, „drüber“); Sterne in der Getrunken-Liste und auf der Wein-Detailseite
+- Excel-Vorlage, -Import und -Export um Bewertung und Reife ergänzt
+- Datenbank: neue Felder `rating` und `maturity` in `drinks`
+
 ## 1.1.0 – 18.11.2026 · Mehrere Nutzer und Excel
 - Excel-Import (.xlsx, .xlsm, .csv) mit automatischer Erkennung von Blättern und Spalten, Vorschau („Nicht übernommen“, Hinweise) und manueller Zuordnung
 - Bereits vorhandene Weine und Wünsche werden beim Import übersprungen (kein doppelter Import)

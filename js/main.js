@@ -15,8 +15,8 @@ const S = {
   drunkFilter: 'all', drunkLimit: 40, statTab: '', expand: new Set(),
   form: null, busy: false, backHref: '#/regal', backLabel: 'Weinregal'
 };
-try { const p = JSON.parse(localStorage.getItem(PREFS) || '{}'); if (Array.isArray(p.recent)) S.recent = p.recent.slice(0, 3); } catch { /* egal */ }
-const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({ recent: S.recent })); } catch { /* egal */ } };
+try { const p = JSON.parse(localStorage.getItem(PREFS) || '{}'); if (Array.isArray(p.recent)) S.recent = p.recent.slice(0, 3); if (p.yearCardHidden) S.yearCardHidden = p.yearCardHidden; } catch { /* egal */ }
+const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({ recent: S.recent, yearCardHidden: S.yearCardHidden || null })); } catch { /* egal */ } };
 
 /* ---------- Hilfen ---------- */
 let toastTimer;
@@ -52,10 +52,10 @@ function parseHash() {
   const [path, qs] = h.split('?');
   const parts = path.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(qs || '');
-  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', vorschlaege: 'reco', wunschliste: 'wish' };
+  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', vorschlaege: 'reco', wunschliste: 'wish' };
   return { name: map[parts[0]] || 'home', arg: parts[1] || '', params };
 }
-const BACK_LABEL = { home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik' };
+const BACK_LABEL = { home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr' };
 function onRoute() {
   const r = parseHash();
   const prev = S.route;
@@ -69,6 +69,7 @@ function onRoute() {
   if (r.name === 'regal' && r.params.get('q') != null) { S.q = r.params.get('q'); S.showDrop = false; }
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
   if (S.form) S.form.keep = false;
+  if (r.name === 'year' && prev.name !== 'wine') S.wjMore = false;
   if (r.name === 'drunk' && prev.name !== 'drunk') { S.drunkLimit = 40; if (prev.name !== 'wine') S.tlPage = 0; }
   // Neue Liste: Standard-Sortierung (Bestand bzw. Datum); beim Zurückkommen vom Wein bleibt die Wahl
   if (['fach', 'list', 'search'].includes(r.name) && prev.name !== 'wine') S.fachSort = 'stock';
@@ -104,14 +105,15 @@ function render(top) {
   else if (r.name === 'drunk') html = V.drunkView(S, D);
   else if (r.name === 'neu') { html = V.newView(S, D); tab = 'neu'; }
   else if (r.name === 'stats') { html = V.statsView(S, D); tab = 'stats'; }
+  else if (r.name === 'year') { html = V.yearView(S, D, Number(r.params.get('y')) || V.reviewYear()); tab = 'stats'; }
   else if (r.name === 'reco') { html = V.recoView(S, D); tab = 'reco'; }
   else if (r.name === 'wish') { html = V.wishView(S, D); tab = 'wish'; }
   else html = V.homeView(S, D);
   // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
-  const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', reco: 'reco', wish: 'wish', neu: 'neu' };
+  const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reco: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
   const split = html.startsWith('<div class="split wsplit">');
-  const wide = split || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'reco', 'wish'].includes(r.name);
+  const wide = split || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reco', 'wish'].includes(r.name);
   const oldL = $('.wsplit .split-l'), keepL = split && oldL ? oldL.scrollTop : 0;
   app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
   // Liste links behält beim Durchklicken ihre Position, rechts startet das Detail oben
@@ -203,7 +205,7 @@ const actions = {
       producers: d.producers.map((p) => ({ name: p.name, cap_color: p.cap_color })),
       wines: d.wines.map((w) => ({ key: w.id, producer: (d.producers.find((p) => p.id === w.producer_id) || {}).name || null, name: w.name, grape: w.grape, wine_type: w.wine_type, style: w.style, region: w.region, vintage: w.vintage, description: w.description, my_note: w.my_note })),
       purchases: d.purchases.map((p) => ({ wine: p.wine_id, purchased_on: p.purchased_on, merchant: p.merchant, qty: p.qty, price: p.price })),
-      drinks: d.drinks.map((x) => ({ wine: x.wine_id, drunk_on: x.drunk_on, qty: x.qty, note: x.note, buy_again: x.buy_again, occasion: x.occasion })),
+      drinks: d.drinks.map((x) => ({ wine: x.wine_id, drunk_on: x.drunk_on, qty: x.qty, note: x.note, buy_again: x.buy_again, occasion: x.occasion, rating: x.rating, maturity: x.maturity })),
       wishlist: d.wishlist.map(({ id, user_id, created_at, ...x }) => x), labels: {}
     };
     download('weinkeller-sicherung-' + today() + '.json', JSON.stringify(out, null, 1));
@@ -217,11 +219,17 @@ const actions = {
   'tl-page'(el) { S.tlPage = Math.max(0, (S.tlPage || 0) + Number(el.dataset.d)); render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
+  'wj-cat'(el) { S.wjCat = el.dataset.k; S.wjMore = false; render(); },
+  'wj-more'() { S.wjMore = !S.wjMore; render(); },
+  'year-hide'() { S.yearCardHidden = V.reviewYear(); savePrefs(); render(); toast('Rückblick ausgeblendet – du findest ihn in der Statistik'); },
   metric(el) { S.metric = { ...(S.metric || {}), [el.dataset.g]: el.dataset.k }; render(); },
   expand(el) { const k = el.dataset.k; if (S.expand.has(k)) S.expand.delete(k); else S.expand.add(k); render(); },
   cap(el) { if (!S.form) S.form = blankForm(); S.form.cap = el.dataset.c || ''; $$('.sw').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); },
-  'buy-again'(el) { const k = el.dataset.k; S.form.buyAgain = S.form.buyAgain === k ? null : k; $$('.opts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.buyAgain))); },
-  drink(el) { const w = S.D.byId.get(el.dataset.id); S.form = { ...(S.form || {}), buyAgain: null }; openSheet(V.drinkSheet(S, w)); },
+  'buy-again'(el) { const k = el.dataset.k; S.form.buyAgain = S.form.buyAgain === k ? null : k; $$('.opts[data-grp=again] button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.buyAgain))); },
+  maturity(el) { const k = el.dataset.k; S.form.maturity = S.form.maturity === k ? null : k; $$('.opts[data-grp=maturity] button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === S.form.maturity))); const h = $('#mat-hint'); if (h) h.textContent = V.maturityHint(S.form.maturity, Number(h.dataset.left)); },
+  // Sterne: erneutes Tippen auf denselben Stern nimmt die Bewertung zurück
+  rate(el) { const n = Number(el.dataset.n); S.form.rating = S.form.rating === n ? null : n; const box = el.closest('.stars'); if (box) box.outerHTML = V.starsInput(S.form.rating); },
+  drink(el) { const w = S.D.byId.get(el.dataset.id); S.form = { ...(S.form || {}), buyAgain: null, rating: null, maturity: null }; openSheet(V.drinkSheet(S, w)); },
   purchase(el) { openSheet(V.purchaseSheet(S, S.D, S.D.byId.get(el.dataset.id))); },
   'edit-wine'(el) { const w = S.D.byId.get(el.dataset.id); S.form = { ...(S.form || blankForm()), cap: w.cap_color || '' }; openSheet(V.editSheet(S, S.D, w)); },
   async 'del-wine'(el) {
@@ -237,7 +245,7 @@ const actions = {
   async 'del-drink'(el) { if (!confirm('Diesen Getrunken-Eintrag löschen?')) return; await guard(async () => { await api.remove('drinks', { id: 'eq.' + el.dataset.id }); closeSheet(); await reload(); toast('Eintrag gelöscht'); }); },
   'edit-drink'(el) {
     const d = S.data.drinks.find((x) => x.id === el.dataset.id); if (!d) return;
-    S.form = { ...(S.form || {}), buyAgain: d.buy_again || null };
+    S.form = { ...(S.form || {}), buyAgain: d.buy_again || null, rating: d.rating || null, maturity: d.maturity || null };
     openSheet(V.drinkSheet(S, S.D.byId.get(d.wine_id), d));
   },
   'edit-purchase'(el) {
@@ -321,7 +329,7 @@ const forms = {
     const old = did ? S.data.drinks.find((x) => x.id === did) : null;
     const max = Math.max(1, w.stock + (old ? old.qty : 0));
     const qty = Math.max(1, Math.min(intOrNull(f.elements.qty.value) || 1, max));
-    const row = { qty, drunk_on: f.elements.drunk_on.value || null, note: txt(f.elements.note.value), occasion: txt(f.elements.occasion.value), buy_again: S.form.buyAgain || null };
+    const row = { qty, drunk_on: f.elements.drunk_on.value || null, note: txt(f.elements.note.value), occasion: txt(f.elements.occasion.value), buy_again: S.form.buyAgain || null, rating: S.form.rating || null, maturity: S.form.maturity || null };
     await guard(async () => {
       if (did) await api.patch('drinks', { id: 'eq.' + did }, row);
       else await api.insert('drinks', [{ wine_id: w.id, ...row }]);
@@ -453,7 +461,7 @@ async function runImport(j) {
     await chunk('wines', wines); for (let i = 0; i < j.wines.length; i++) done++; prog('Weine angelegt');
     const wid = (k) => wineId.get(String(k));
     await chunk('purchases', (j.purchases || []).filter((p) => wid(p.wine)).map((p) => ({ wine_id: wid(p.wine), purchased_on: p.purchased_on || null, merchant: p.merchant || null, qty: p.qty, price: p.price == null ? null : p.price })));
-    await chunk('drinks', (j.drinks || []).filter((d) => wid(d.wine)).map((d) => ({ wine_id: wid(d.wine), drunk_on: d.drunk_on || null, qty: d.qty || 1, note: d.note || null, buy_again: d.buy_again || null, occasion: d.occasion || null })));
+    await chunk('drinks', (j.drinks || []).filter((d) => wid(d.wine)).map((d) => ({ wine_id: wid(d.wine), drunk_on: d.drunk_on || null, qty: d.qty || 1, note: d.note || null, buy_again: d.buy_again || null, occasion: d.occasion || null, rating: d.rating || null, maturity: d.maturity || null })));
     prog('Käufe und Getrunken-Einträge angelegt');
     if ((j.wishlist || []).length) await chunk('wishlist', j.wishlist.map((x) => ({ producer: x.producer || null, name: x.name, grape: x.grape || null, wine_type: x.wine_type || null, region: x.region || null, vintage: x.vintage || null, idea_source: x.idea_source || null, merchant: x.merchant || null, price: x.price == null ? null : x.price, url: x.url || null, note: x.note || null })));
     prog('Wunschliste angelegt');

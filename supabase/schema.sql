@@ -58,8 +58,13 @@ create table if not exists public.drinks (
   note text,                            -- eigene Notiz
   buy_again text check (buy_again is null or buy_again in ('ja','nein','evtl')),
   occasion text,                        -- Anlass
+  rating smallint check (rating is null or rating between 1 and 5),          -- Bewertung 1–5 (ab 1.2)
+  maturity text check (maturity is null or maturity in ('jung','ok','drueber')), -- Reife beim Trinken (ab 1.2)
   created_at timestamptz not null default now()
 );
+-- Nachrüsten bestehender Projekte (Version 1.2)
+alter table public.drinks add column if not exists rating smallint check (rating is null or rating between 1 and 5);
+alter table public.drinks add column if not exists maturity text check (maturity is null or maturity in ('jung','ok','drueber'));
 create index if not exists drinks_wine_idx on public.drinks(wine_id);
 create index if not exists drinks_user_idx on public.drinks(user_id, drunk_on);
 
