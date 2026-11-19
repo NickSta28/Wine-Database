@@ -89,6 +89,7 @@ function render(top) {
   S.keepR = $('.wsplit .split-r')?.scrollTop || 0;
   let html = '', tab = 'home';
   if (r.name === 'regal') html = V.regalView(S, D);
+  else if (r.name === 'fach' && S.wide && S.fachMode === 'labels') { const F = faecher(D); html = V.fachView(S, D, r.arg, F.find((f) => f.name === r.arg)?.wines || [], { wall: true, fachChips: F }); }
   else if (r.name === 'fach' && S.wide) html = V.fachSplit(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || []);
   else if (['fach', 'search', 'list'].includes(r.name)) { html = listView(r); if (r.name === 'list') tab = 'stats'; }
   else if (r.name === 'wine') {
@@ -113,7 +114,7 @@ function render(top) {
   const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reco: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
   const split = html.startsWith('<div class="split wsplit">');
-  const wide = split || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reco', 'wish'].includes(r.name);
+  const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reco', 'wish'].includes(r.name);
   const oldL = $('.wsplit .split-l'), keepL = split && oldL ? oldL.scrollTop : 0;
   app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
   // Liste links behält beim Durchklicken ihre Position, rechts startet das Detail oben
@@ -124,7 +125,7 @@ function render(top) {
 // Listen (Fach, Suche, Statistik-Liste); extra: zusätzliche Optionen für die geteilte Ansicht
 function listView(r, extra = {}) {
   const D = S.D;
-  if (r.name === 'fach') return V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || [], extra);
+  if (r.name === 'fach') return V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || [], { wall: !extra.sel, ...extra });
   if (r.name === 'search') { const m = matcher(S.q); return V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false, ...extra }); }
   const k = V.LIST_FIELDS[r.params.get('k')] ? r.params.get('k') : 'grape', f = V.LIST_FIELDS[k], v = r.params.get('v') || '';
   const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
@@ -219,6 +220,7 @@ const actions = {
   'tl-page'(el) { S.tlPage = Math.max(0, (S.tlPage || 0) + Number(el.dataset.d)); render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
+  'fach-mode'(el) { S.fachMode = el.dataset.k; render(); },
   'wj-cat'(el) { S.wjCat = el.dataset.k; S.wjMore = false; render(); },
   'wj-more'() { S.wjMore = !S.wjMore; render(); },
   'year-hide'() { S.yearCardHidden = V.reviewYear(); savePrefs(); render(); toast('Rückblick ausgeblendet – du findest ihn in der Statistik'); },

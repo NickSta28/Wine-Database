@@ -3,6 +3,11 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.2.2 – 19.11.2026 · Grafiken für das iPad
+- „Dein Weinjahr“ auf dem iPad quer als Übersichtsseite: Jahresleiste mit Säulen je Jahr, Kopfzeile mit vier Kennzahlen, Monate mit Linie „Keller-Veränderung seit Januar“, Kalender „Deine Wein-Tage“, Etiketten-Collage der getrunkenen Weine (Lieblinge groß)
+- Etiketten-Wand: im Fach Umschalter „Liste | Etiketten“ – alle Weine als Etikettenfotos, ohne Foto als Platzhalter; auf dem iPad ganzseitig mit Fach-Auswahl
+- Statistik Bestand: „Rebsorte × Jahrgang“ als Raster mit Farbabstufung und Schwerpunkt, Feld antippen zeigt die Weine
+
 ## 1.2.1 – 19.11.2026
 - Weinjahr: Vergleich zum Vorjahr verständlicher formuliert („53 Fl. weniger als 2022 (71)“ statt „−53 Fl. ggü. 2022“)
 

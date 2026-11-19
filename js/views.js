@@ -213,11 +213,26 @@ export function fachView(S, D, name, list, opts = {}) {
     (o.scope === 'stock'
       ? '<div class="kpi"><div class="l">Flaschen</div><div class="v">' + num(b) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(v, 0) + '</div></div>'
       : '<div class="kpi"><div class="l">' + (o.scope === 'drunk' ? 'Getrunken' : 'Gekauft') + '</div><div class="v">' + fl(list.reduce((s, w) => s + (o.scope === 'drunk' ? w.drunk : w.bought), 0)) + '</div></div><div class="kpi"><div class="l">Noch im Keller</div><div class="v">' + fl(b) + '</div></div>') + '</div>' +
-    '<div class="chips" style="margin-top:16px">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
-    (list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
+    (o.fachChips ? '<div class="chips fchips" style="margin-top:14px">' + o.fachChips.map((f) => '<a class="chip" href="#/fach/' + encodeURIComponent(f.name) + '" aria-pressed="' + (f.name === name) + '">' + esc(f.name) + ' <b>' + f.wines.length + '</b></a>').join('') + '</div>' : '') +
+    '<div class="fbar"><div class="chips" style="margin-top:0">' + Object.entries(sorters).map(([k, [l]]) => '<button class="chip" data-act="fach-sort" data-k="' + k + '" aria-pressed="' + (S.fachSort === k) + '">' + l + '</button>').join('') + '</div>' +
+    (o.wall ? '<div class="seg sm" role="group" aria-label="Ansicht">' + [['list', 'Liste'], ['labels', 'Etiketten']].map(([k, l]) => '<button data-act="fach-mode" data-k="' + k + '" aria-pressed="' + ((S.fachMode || 'list') === k) + '">' + l + '</button>').join('') + '</div>' : '') + '</div>' +
+    (list.length && o.wall && S.fachMode === 'labels' && !o.sel ? labelWall(S, sorted) :
+    list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
       '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => { const r = wineRow(w, o.scope, dateOf(w)); return w.id === o.sel ? r.replace('<a class="row"', '<a class="row sel" aria-current="true"') : r; }).join('') + '</div>'
       : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
       : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
+}
+
+// Etiketten-Wand: Weine eines Fachs als Etikettenfotos, ohne Foto mit Platzhalter
+function labelWall(S, list) {
+  const ini = (p) => String(p || '?').replace(/^(Weingut|Weinbau|Dr\.|Schloss|Villa|Domaine|Château|Chateau|Champagne)\s+/i, '').split(/[\s-]+/).map((x) => x.charAt(0)).join('').slice(0, 2).toUpperCase();
+  const n = list.filter((w) => w.label_path && S.urls[w.label_path]).length;
+  return '<p class="note" style="margin-top:12px">' + plural(list.length, 'Wein', 'Weine') + ' · ' + n + ' mit Foto' + (n < list.length ? ' – Foto nachholen: Wein antippen und „Etikett fotografieren“' : '') + '</p><div class="wall">' + list.map((w) => {
+    const u = w.label_path && S.urls[w.label_path];
+    return '<a href="#/wein/' + w.id + '" aria-label="' + esc(w.name + (w.vintage ? ' ' + w.vintage : '') + ', ' + (w.producer || '') + ', ' + fl(w.stock) + (u ? '' : ', noch ohne Etikettenfoto')) + '"><span class="pic">' +
+      (u ? '<img src="' + esc(u) + '" alt="" loading="lazy">' : '<span class="ph"><b>' + esc(ini(w.producer)) + '</b>' + icon('camera') + '<span>Foto fehlt</span></span>') +
+      '<span class="q">' + num(w.stock) + ' Fl.</span></span><span class="nm">' + esc(w.name) + '</span><span class="sb">' + esc([w.producer, w.vintage].filter(Boolean).join(' · ')) + '</span></a>';
+  }).join('') + '</div>';
 }
 
 // iPad quer: Regal links, gewähltes Fach rechts
@@ -225,7 +240,7 @@ export function fachSplit(S, D, name, list) {
   const t = totals(D), F = faecher(D);
   return '<div class="split"><div class="split-l">' + head('Mein Keller', 'Weinregal', '<div class="meta">' + fl(t.stock) + '<br>' + plural(F.length, 'Fach', 'Fächer') + '</div>') +
     shelfHtml(D, S.q, name) + (S.q.trim() ? '<p class="hint">Gold = Treffer für „' + esc(S.q.trim()) + '“ · <a href="#/regal" style="color:var(--wine)">Suche bearbeiten</a></p>' : '') +
-    '</div><div class="split-r">' + fachView(S, D, name, list, { split: true }) + '</div></div>';
+    '</div><div class="split-r">' + fachView(S, D, name, list, { split: true, wall: true }) + '</div></div>';
 }
 
 /* ---------- Detail ---------- */
@@ -466,7 +481,8 @@ export const LIST_FIELDS = {
   dyear: ['Getrunken im Jahr', (w) => w.drinks.map((d) => yearOf(d.drunk_on)).filter(Boolean)],
   byear: ['Gekauft im Jahr', (w) => w.purchases.map((p) => yearOf(p.purchased_on)).filter(Boolean)],
   again: ['Nochmal kaufen', (w) => w.drinks.map((d) => BA_LABEL[d.buy_again]).filter(Boolean)],
-  price: ['Preis pro Flasche', (w) => priceBucket(w.avgPrice)]
+  price: ['Preis pro Flasche', (w) => priceBucket(w.avgPrice)],
+  gv: ['Rebsorte und Jahrgang', (w) => (w.grape || 'ohne Rebsorte') + ' ' + (w.vintage || 'ohne Jahrgang')]
 };
 export const listMatch = (field, v) => (w) => { const x = LIST_FIELDS[field][1](w); return Array.isArray(x) ? x.includes(v) : x === v; };
 export const listHref = (field, value, scope) => '#/liste?k=' + field + '&v=' + encodeURIComponent(value) + (scope ? '&s=' + scope : '');
@@ -503,6 +519,27 @@ const boxT = (title, right, inner) => '<div class="card chart" style="margin-top
 function barBox(S, title, rows, fmt, key, link, right = '') {
   const open = S.expand.has(key);
   return boxT((!open && rows.length > TOP_N ? 'Top-5 ' : '') + title, right, hbars(rows, fmt, { key, open, link }));
+}
+// Rebsorte × Jahrgang: Flaschen im Keller als Raster mit Farbabstufung
+function matrixBox(ws) {
+  if (ws.length < 3) return '';
+  const vy = [...new Set(ws.map((w) => w.vintage || 0))].sort((a, b) => (a || 9999) - (b || 9999));
+  const gr = groupSum(ws, (w) => w.grape || 'ohne Rebsorte', (w) => w.stock).sort((a, b) => b[1] - a[1]);
+  const cell = (g, v) => ws.filter((w) => (w.grape || 'ohne Rebsorte') === g && (w.vintage || 0) === v).reduce((s, w) => s + w.stock, 0);
+  const lvl = (n) => (!n ? '' : n <= 2 ? ' m1' : n <= 5 ? ' m2' : n <= 10 ? ' m3' : ' m4');
+  const colSum = vy.map((v) => ws.filter((w) => (w.vintage || 0) === v).reduce((s, w) => s + w.stock, 0)), total = colSum.reduce((a, b) => a + b, 0);
+  // Schwerpunkt: die drei aufeinanderfolgenden Jahrgänge der größten Rebsorte mit den meisten Flaschen
+  const top = gr[0][0], yrs = vy.filter(Boolean); let best = null;
+  for (let i = 0; i + 2 < yrs.length; i++) { const n = yrs.slice(i, i + 3).reduce((s, v) => s + cell(top, v), 0); if (!best || n > best.n) best = { a: yrs[i], b: yrs[i + 2], n }; }
+  const cs = 'grid-template-columns:minmax(96px,130px) repeat(' + vy.length + ',minmax(30px,1fr)) 46px';
+  return '<div class="card chart full"><div class="chart-head"><div class="eyebrow ce">Rebsorte × Jahrgang</div><div class="note" style="margin:0">Feld antippen zeigt die Weine</div></div>' +
+    (best && best.n ? '<div class="wjsal" style="margin-top:6px">Schwerpunkt: <b>' + esc(top) + ' ' + best.a + '–' + best.b + ' mit ' + fl(best.n) + '</b> (' + Math.round(best.n / total * 100) + ' % des Kellers)</div>' : '') +
+    '<div class="mxw"><div class="mx" role="table" aria-label="Flaschen im Keller nach Rebsorte und Jahrgang" style="' + cs + '">' +
+    '<span class="h" role="columnheader">Rebsorte</span>' + vy.map((v) => '<span class="h c" role="columnheader">' + (v || 'ohne') + '</span>').join('') + '<span class="h r" role="columnheader">Summe</span>' +
+    gr.map(([g, sum]) => '<span class="g" role="rowheader">' + esc(g) + '</span>' + vy.map((v) => { const n = cell(g, v);
+      return n ? '<a class="x' + lvl(n) + '" role="cell" href="' + listHref('gv', g + ' ' + (v || 'ohne Jahrgang')) + '" aria-label="' + esc(g + ' ' + (v || 'ohne Jahrgang') + ': ' + fl(n)) + '">' + n + '</a>' : '<span class="x" role="cell"></span>'; }).join('') + '<span class="r" role="cell">' + sum + '</span>').join('') +
+    '<span class="g f">Summe</span>' + colSum.map((n) => '<span class="f c">' + n + '</span>').join('') + '<span class="f r">' + total + '</span></div></div>' +
+    '<div class="callg mxl">Flaschen: <i class="m1"></i>1–2 <i class="m2"></i>3–5 <i class="m3"></i>6–10 <i class="m4"></i>über 10</div></div>';
 }
 // Preis-Gruppen ohne Überschneidung, nach durchschnittlichem Kaufpreis je Flasche (auf Cent gerundet)
 export const PRICE_BUCKETS = [['unter 10 €', 10], ['10 – 14,99 €', 15], ['15 – 24,99 €', 25], ['25 – 39,99 €', 40], ['ab 40 €', Infinity]];
@@ -589,6 +626,7 @@ function statPart(S, D, tab) {
         priceBox(S, D, 'stock') +
         barBox(S, 'Regionen', groupSum(inS, (w) => w.region, (w) => w.stock), num, 'region', (k) => listHref('region', k)) +
         (vint.length ? box('Jahrgänge im Keller', cols(vint, num, (k) => listHref('vintage', k))) : '') +
+        matrixBox(inS) +
         barBox(S, 'Weingüter nach Lagerwert', groupSum(inS, (w) => w.producer, (w) => w.value), (v) => eur(v, 0), 'producer', (k) => listHref('producer', k)) +
         barBox(S, 'Händler im Bestand', groupSum(alloc, (x) => x.m, (x) => (sEur ? x.eur : x.fl)), sEur ? (v) => eur(v, 0) : num, 'smerch', (k) => listHref('merchant', k), metricSeg(S, 'stock')));
     }
@@ -711,9 +749,61 @@ export function yearView(S, D, y) {
   const again = asum ? '<div class="card chart"><div class="eyebrow ce">Würdest du sie nochmal kaufen?</div><div class="tbar tall" aria-hidden="true">' + x.again.map(([, v, c]) => '<i style="flex:' + v + ';background:' + c + '"></i>').join('') + '</div>' +
     '<div class="tlg dk">' + x.again.map(([l, v, c]) => '<span><i style="background:' + c + '"></i>' + l + ' ' + v + '</span>').join('') + '</div>' +
     (x.occ.length ? '<div class="eyebrow ce" style="margin-top:16px">Anlässe</div><div class="tags">' + x.occ.map((o) => '<span class="tag">' + esc(o) + '</span>').join('') + '</div>' : '') + '</div>' : '';
+  if (S.wide) return yearWide(S, D, y, years, x, prev, { news, grapes, again });
   return backBtn('#/statistik', 'Statistik') + '<div class="top"><div><div class="eyebrow">Rückblick</div><h1 class="title">Dein Weinjahr</h1></div></div>' + chips + hero + kpis +
     '<div class="sgrid wjgrid">' + months + news + grapes + favs + again + '</div>' +
     (x.undated ? '<p class="note">Gezählt werden nur Einträge mit Datum. ' + fl(x.undated) + ' ohne Datum ' + (x.undated === 1 ? 'ist' : 'sind') + ' nicht enthalten – trägst du ein Datum nach, erscheinen sie im passenden Jahr.</p>' : '');
+}
+
+// iPad quer: Rückblick als Übersichtsseite (Jahresleiste, Kopfzeile, Monate mit Keller-Linie, Kalender, Etiketten)
+function yearWide(S, D, y, years, x, prev, parts) {
+  const ys = String(y), fy = years.slice().sort((a, b) => a - b);
+  const flOf = new Map(fy.map((k) => [k, yearStats(D, k).fl])), fmax = Math.max(1, ...flOf.values());
+  const strip = '<div class="wjstrip" role="group" aria-label="Jahr wählen">' + fy.map((k) => '<a href="#/weinjahr?y=' + k + '"' + (k === y ? ' aria-current="page"' : '') + ' aria-label="' + k + ': ' + flOf.get(k) + ' Flaschen getrunken"><span class="n">' + (flOf.get(k) || '–') + '</span><i style="height:' + Math.max(2, Math.round(flOf.get(k) / fmax * 46)) + 'px"></i><b>' + k + '</b></a>').join('') + '</div>';
+  const delta = prev ? x.fl - prev.fl : null;
+  const boughtMonths = x.months.filter((m) => m[1]).length;
+  const tile = (l, v, sub) => '<div class="t"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>';
+  const hero = '<div class="wjhero wide"><div class="r1"><div class="lead"><div class="l">Getrunken ' + y + '</div><div class="big"><b>' + num(x.fl) + '</b><span>' + (x.fl === 1 ? 'Flasche' : 'Flaschen') + '</span></div>' +
+    '<div class="l2">' + (x.n ? 'in ' + plural(x.n, 'Eintrag', 'Einträgen') : 'noch keine Einträge mit Datum') + (delta == null ? '' : ' · ' + (delta === 0 ? 'so viele wie ' + (y - 1) : Math.abs(delta) + ' Fl. ' + (delta > 0 ? 'mehr' : 'weniger') + ' als ' + (y - 1) + ' (' + num(prev.fl) + ')')) + '</div></div>' +
+    '<div class="tiles">' + tile('Genossen für', eur(x.val, 0), x.fl ? 'Ø ' + eur2(x.val / x.fl) + ' / Fl.' : '') + tile('Gekauft', num(x.pfl) + ' Fl.', boughtMonths ? 'in ' + plural(boughtMonths, 'Monat', 'Monaten') : '') +
+    tile('Ausgegeben', eur(x.peur, 0), x.pfl ? 'Ø ' + eur2(x.peur / x.pfl) + ' / Fl.' : '') + tile('Nochmal kaufen', x.ja + '×', x.n ? 'von ' + plural(x.n, 'Eintrag', 'Einträgen') : '') + '</div></div>' +
+    (x.types.length ? '<div class="tbar" aria-hidden="true">' + x.types.map(([k, v]) => '<i style="flex:' + v + ';background:' + (TYPE_COLOR[k] || '#CFC4B6') + '"></i>').join('') + '</div><div class="tlg">' + x.types.map(([k, v]) => '<span><i style="background:' + (TYPE_COLOR[k] || '#CFC4B6') + '"></i>' + esc(k) + ' ' + num(v) + '</span>').join('') + '</div>' : '') + '</div>';
+  // Monate: Säulen plus Linie „Keller-Veränderung seit Januar“ (gekauft − getrunken, kumuliert)
+  let cum = 0; const cumv = x.months.map(([d, p]) => (cum += p - d));
+  const mmax = Math.max(1, ...x.months.flat()), lim = Math.max(1, ...cumv.map(Math.abs));
+  const yOf = (v) => (8 + (lim - v) / (2 * lim) * 144).toFixed(1);
+  const pts = cumv.map((v, i) => ((i + 0.5) * 40).toFixed(1) + ',' + yOf(v)).join(' ');
+  const pk = x.months.reduce((b, m, i) => (m[0] > x.months[b][0] ? i : b), 0), endv = cumv[11];
+  const months = '<div class="card chart wjm"><div class="chart-head"><div class="eyebrow ce">Monat für Monat</div><div class="wjsal">Keller seit 1. Januar: <b class="' + (endv < 0 ? 'neg' : 'pos') + '">' + (endv > 0 ? '+' : endv < 0 ? '−' : '±') + fl(Math.abs(endv)) + '</b></div></div>' +
+    '<div class="wjmc"><div class="bars">' + x.months.map(([d, p], i) => '<div title="' + MONL[i] + ': ' + d + ' getrunken, ' + p + ' gekauft, Keller seit Januar ' + (cumv[i] > 0 ? '+' : '') + cumv[i] + '"><i class="d" style="height:' + Math.round(d / mmax * 150) + 'px"></i><i class="p" style="height:' + Math.round(p / mmax * 150) + 'px"></i></div>').join('') + '</div>' +
+    '<svg viewBox="0 0 480 160" preserveAspectRatio="none" role="img" aria-label="Keller-Veränderung seit Januar, am Jahresende ' + endv + ' Flaschen"><line x1="0" x2="480" y1="' + yOf(0) + '" y2="' + yOf(0) + '" class="z"/><polyline points="' + pts + '" vector-effect="non-scaling-stroke"/></svg>' +
+    '<div class="ml">' + MON.map((m) => '<span>' + m + '</span>').join('') + '</div></div>' +
+    '<div class="plg"><span><i class="d"></i>Getrunken</span><span><i class="b"></i>Gekauft</span><span><i class="ln"></i>Keller-Veränderung seit Januar</span><em>' + (x.months[pk][0] ? 'Stärkster Monat: ' + MONL[pk] + ' · ' + fl(x.months[pk][0]) : '') + '</em></div></div>';
+  // Kalender: Tage mit Wein, Wochen ab Montag
+  const daily = new Map(), occ = new Set();
+  D.wines.forEach((w) => w.drinks.forEach((d) => { if (d.drunk_on && d.drunk_on.startsWith(ys)) { daily.set(d.drunk_on, (daily.get(d.drunk_on) || 0) + d.qty); if (d.occasion) occ.add(d.drunk_on); } }));
+  const start = Date.UTC(y, 0, 1), lead = (new Date(start).getUTCDay() + 6) % 7, nd = (Date.UTC(y + 1, 0, 1) - start) / 864e5;
+  let cells = '<i class="e"></i>'.repeat(lead);
+  for (let i = 0; i < nd; i++) {
+    const dt = new Date(start + i * 864e5), k = dt.toISOString().slice(0, 10), v = daily.get(k) || 0;
+    cells += '<i class="c' + (v ? (v === 1 ? ' v1' : v < 5 ? ' v2' : ' v3') : '') + (occ.has(k) ? ' oc' : '') + '" title="' + dt.getUTCDate() + '.' + (dt.getUTCMonth() + 1) + '.: ' + (v ? fl(v) : 'kein Wein') + '"></i>';
+  }
+  const topDay = [...daily.entries()].sort((a, b) => b[1] - a[1])[0];
+  const mh = MONL.map((m, i) => { const w0 = Math.floor((lead + (Date.UTC(y, i, 1) - start) / 864e5) / 7), w1 = Math.floor((lead + (Date.UTC(y, i + 1, 1) - start) / 864e5 - 1) / 7); return '<span style="width:' + ((w1 - w0 + 1) * 14 - 3) + 'px">' + m.slice(0, 3) + '</span>'; }).join('');
+  const cal = '<div class="card chart"><div class="chart-head"><div class="eyebrow ce">Deine Wein-Tage</div><div class="wjsal">' + (daily.size ? plural(daily.size, 'Tag', 'Tage') + ' mit Wein · meiste Flaschen: <b>' + deDate(topDay[0]).slice(0, 6) + ' (' + topDay[1] + ')</b>' : 'Noch keine Tage mit Datum') + '</div></div>' +
+    '<div class="wjcal"><div class="mh">' + mh + '</div><div class="row"><div class="wd"><span>Mo</span><span></span><span>Mi</span><span></span><span>Fr</span><span></span><span>So</span></div><div class="g" role="img" aria-label="Kalender ' + y + ': ' + daily.size + ' Tage mit Wein">' + cells + '</div></div></div>' +
+    '<div class="callg">weniger <i></i><i class="v1"></i><i class="v2"></i><i class="v3"></i> mehr <span><i class="oc"></i>Tag mit Anlass</span></div></div>';
+  // Etiketten der im Jahr getrunkenen Weine; Lieblinge groß
+  const byW = new Map();
+  D.wines.forEach((w) => w.drinks.forEach((d) => { if (d.drunk_on && d.drunk_on.startsWith(ys)) { const o = byW.get(w.id) || { w, fl: 0, r: 0 }; o.fl += d.qty; o.r = Math.max(o.r, d.rating || 0); byW.set(w.id, o); } }));
+  const favIds = new Set(x.fav.map((o) => o.w.id));
+  const all = [...byW.values()].sort((a, b) => (favIds.has(b.w.id) - favIds.has(a.w.id)) || b.fl - a.fl), withPic = all.filter((o) => o.w.label_path && S.urls[o.w.label_path]);
+  const collage = all.length ? '<div class="card chart"><div class="chart-head"><div class="eyebrow ce">Deine Etiketten ' + y + '</div><div class="wjsal">' + withPic.length + ' von ' + plural(all.length, 'Wein', 'Weinen') + ' mit Foto' + (favIds.size ? ' · groß = Lieblinge' : '') + '</div></div>' +
+    '<div class="wjlab">' + withPic.map((o) => '<a href="#/wein/' + o.w.id + '" class="' + (favIds.has(o.w.id) ? 'big' : '') + '" aria-label="' + esc(o.w.name + ', ' + fl(o.fl)) + '"><img src="' + esc(S.urls[o.w.label_path]) + '" alt="" loading="lazy"><span class="q">' + num(o.fl) + ' Fl.</span>' + (favIds.has(o.w.id) && o.r ? '<span class="st">' + '★'.repeat(o.r) + '</span>' : '') + '</a>').join('') + '</div></div>' : '';
+  return backBtn('#/statistik', 'Statistik') + '<div class="wjtop"><div><div class="eyebrow">Rückblick</div><h1 class="title">Dein Weinjahr</h1></div>' + strip + '</div>' + hero +
+    '<div class="wjg2">' + months + parts.news + '</div>' + cal +
+    '<div class="wjg2 st">' + (collage || parts.grapes) + '<div class="wjside">' + (collage ? parts.grapes : '') + parts.again + '</div></div>' +
+    (x.undated ? '<p class="note">Gezählt werden nur Einträge mit Datum. ' + fl(x.undated) + ' ohne Datum ' + (x.undated === 1 ? 'ist' : 'sind') + ' nicht enthalten.</p>' : '');
 }
 
 /* ---------- Vorschläge ---------- */
