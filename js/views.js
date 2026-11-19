@@ -4,6 +4,7 @@ import { TYPES, STYLES, TYPE_COLOR, CAP_COLORS, BUY_AGAIN, faecher, layout, matc
 import { VERSION } from './version.js';
 import { ROLES, headers } from './excel.js';
 import * as R from './reife.js';
+import * as K from './kauf.js';
 
 /* ---------- Icons ---------- */
 const P = {
@@ -846,17 +847,71 @@ function yearWide(S, D, y, years, x, prev, parts) {
 }
 
 /* ---------- Vorschläge ---------- */
+// Vorschläge (ab 1.4 mit Kaufberatung): Ergebnis, gezielt kaufen, erst trinken, nachkaufen, Wunschliste
 export function recoView(S, D) {
-  const again = D.wines.filter((w) => w.buyAgain === 'ja' && w.stock <= 1).sort((a, b) => String(b.lastDrunk || '').localeCompare(String(a.lastDrunk || ''))).slice(0, 4);
-  const old = D.wines.filter((w) => w.stock > 0 && w.firstBought).sort((a, b) => a.firstBought.localeCompare(b.firstBought)).slice(0, 4);
-  const card = (w, tag, text, extra = '') => '<div class="card" style="padding:16px;margin-bottom:10px"><a href="#/wein/' + w.id + '" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><span><span style="display:block;font:600 18px/1.25 var(--head)">' + esc(w.name) + (w.vintage ? ' ' + w.vintage : '') + '</span>' +
-    '<span class="sub" style="display:block;font-size:13px;margin-top:3px">' + esc([w.producer, w.grape, w.region].filter(Boolean).join(' · ')) + '</span></span><span class="tag" style="flex:none">' + tag + '</span></a>' +
-    (text ? '<div style="font-size:13px;line-height:1.45;margin-top:10px">' + text + '</div>' : '') + extra + '</div>';
-  return head('Für dich ausgewählt', 'Vorschläge') +
-    '<div class="sec">Mal wieder aufmachen</div>' + (old.length ? old.map((w) => card(w, fl(w.stock), 'Seit ' + esc(deDate(w.firstBought)) + ' im Keller' + (w.lastNote ? ' · Deine Notiz: „' + esc(w.lastNote) + '“' : ''))).join('') : '<p class="note">Noch keine Weine im Keller.</p>') +
-    '<div class="sec">Nachkaufen</div>' + (again.length ? again.map((w) => card(w, w.stock ? 'Letzte Fl.' : 'Ausgetrunken', w.lastNote ? 'Deine Notiz: „' + esc(w.lastNote) + '“' : '', shopLinks(w))).join('') : '<p class="note">Hier erscheinen Weine, die du nochmal kaufen würdest und die fast oder ganz leer sind.</p>') +
+  const A = K.analyse(D, S.tempo), recs = K.recommendations(D, A), pause = A.rows.filter((r) => r.st === 'pause').slice(0, 6), rb = K.rebuy(D, A).slice(0, 6);
+  const tiles = K.CATS.filter((c) => A.cat[c].fl).map((c) => '<div class="kt"><span>' + K.CAT_SHORT[c] + '</span><b>' + yrs(A.cat[c].reach) + '</b><em>' + (A.cat[c].gap ? 'Lücke ab ' + A.cat[c].gap : 'versorgt') + '</em></div>').join('');
+  const hero = A.fl ? '<a class="khero" href="#/kaufberatung"><div class="eyebrow" style="color:var(--gold)">Kaufberatung</div><div class="kh">' + (A.ok < A.fl * 0.75 ? 'Erst trinken, gezielt nachkaufen' : 'Gut sortiert – gezielt nachkaufen') + '</div>' +
+    '<p>' + num(A.fl) + ' Flaschen reichen bei ' + num(S.tempo) + ' Fl. pro Jahr rund ' + yrs(A.reach, 'Jahre') + '. Im Trinkfenster schaffst du davon etwa ' + num(A.ok) + '.</p><div class="kts">' + tiles + '</div>' +
+    '<span class="kmore">Reife-Lücke, Reichweite, Tempo' + icon('chev') + '</span></a>' : '';
+  return head('Für dich ausgewählt', 'Vorschläge') + hero +
+    (recs.length ? '<div class="sec">Gezielt kaufen</div>' + recs.map(recoCard).join('') : '') +
+    (pause.length ? '<div class="sec">Erst trinken, nicht kaufen</div><div class="card list">' + pause.map((r) => '<a class="row" href="#/kaufberatung"><span class="tx"><span class="t">' + esc(r.name) + '</span><span class="s">' + num(r.fl) + ' Fl. · ' + (r.over === r.fl ? 'alle Fenster vorbei' : r.bad + ' nicht mehr im Fenster') + '</span></span>' + kpill(r.st) + '</a>').join('') + '</div>' : '') +
+    '<div class="sec">Nachkaufen</div>' + (rb.length ? '<div class="card list">' + rb.map(({ w, later, stars }) => '<a class="row" href="#/wein/' + w.id + '"><span class="tx"><span class="t">' + esc(w.name + (w.vintage ? ' ' + w.vintage : '')) + '</span><span class="s">' + esc([w.producer, stars >= 4 ? stars + ' Sterne' : 'nochmal: ja', w.stock ? 'noch 1 Fl.' : 'ausgetrunken', later ? 'erst nach der Kauf-Pause' : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+      (later ? '<span class="rpill" style="color:var(--muted);background:var(--soft)">später</span>' : icon('chev', 'i chev')) + '</a>').join('') + '</div>' : '<p class="note">Hier erscheinen Weine, die du nochmal kaufen würdest oder mit 4–5 Sternen bewertet hast und die fast oder ganz leer sind.</p>') +
     (D.wishlist.length ? '<div class="sec">Von deiner Wunschliste</div>' + D.wishlist.slice(0, 3).map((x) => '<a class="card" href="#/wunschliste" style="display:block;padding:14px 16px;margin-bottom:10px"><span style="display:block;font:600 16px var(--head)">' + esc(x.name) + '</span><span class="sub" style="display:block;font-size:13px">' + esc([x.producer, x.grape, x.price != null ? eur(x.price) : ''].filter(Boolean).join(' · ')) + '</span></a>').join('') : '');
 }
+const yrs = (x, unit = 'J.') => (x == null ? '–' : String(Math.round(x * 2) / 2).replace('.', ',') + ' ' + unit);
+const kpill = (st) => '<span class="rpill" style="color:' + K.ROW_ST[st][1] + ';background:' + K.ROW_ST[st][2] + '">' + K.ROW_ST[st][0] + '</span>';
+function recoCard(r) {
+  const pl = r.gap ? '<span class="rpill" style="color:' + (r.c === 'R' ? '#3E6A92;background:#E1EAF3' : '#2F6B45;background:#E1EFE4') + '">' + (r.c === 'R' ? 'ab ' : 'für ') + r.gap + (r.c === 'R' ? '' : '+') + '</span>' : '<span class="rpill" style="color:var(--muted);background:var(--soft)">versorgt</span>';
+  return '<div class="card kcard"><div class="kct"><b>' + esc(r.title) + '</b>' + pl + '</div><p>' + esc(r.text) + '</p>' +
+    (r.gap && r.items.length ? '<div class="kml">' + esc(r.label) + '</div>' + r.items.map((x) => '<a class="kit" href="' + x.href + '"><span>' + esc(x.t) + '</span><em>' + esc(x.r) + '</em></a>').join('') : '') + '</div>';
+}
+
+// Kaufberatung im Detail: Tempo, Ergebnis, Reife-Lücke, „Schaffst du das im Fenster?“; iPad als Übersichtsseite
+export function kaufView(S, D) {
+  const A = K.analyse(D, S.tempo), sug = K.suggestedTempo(D), dated = K.datedPerYear(D), y = R.nowYear();
+  if (!A.fl) return head('Vorschläge', 'Kaufberatung') + '<div class="empty"><b>Noch kein Bestand</b></div>';
+  const tHint = S.tempoOwn ? 'Eigenes Tempo – gilt auf allen Geräten. <button class="lnk" data-act="tempo-reset">Vorschlag (' + sug + ') verwenden</button>'
+    : 'Vorschlag aus deinen Einträgen: ' + num(D.drinks.reduce((s, d) => s + (d.qty || 0), 0)) + ' getrunkene Flaschen seit ' + firstYear(D) + '.' + ((dated[y] || 0) + (dated[y - 1] || 0) < S.tempo / 2 ? ' Mit Datum sind ' + (y - 1) + ' nur ' + (dated[y - 1] || 0) + ' und ' + y + ' nur ' + (dated[y] || 0) + ' Flaschen erfasst – trägst du fehlende Daten nach, wird das Tempo genauer.' : '');
+  const stepper = '<button type="button" class="kst" data-act="tempo" data-d="-4" aria-label="Tempo verringern">−</button><button type="button" class="kst" data-act="tempo" data-d="4" aria-label="Tempo erhöhen">+</button>';
+  const result = 'Dein Keller reicht rund ' + yrs(A.reach, 'Jahre') + ' – im Fenster schaffst du ' + num(A.ok) + ' von ' + num(A.fl) + ' Flaschen';
+  const sub = K.CATS.filter((c) => A.cat[c].fl).map((c) => K.CAT_SHORT[c] + ' ' + yrs(A.cat[c].reach)).join(' · ');
+  const rows = '<div class="krows">' + A.rows.map((r) => '<div class="krow"><div class="kr1"><b>' + esc(r.name) + ' <small>' + num(r.fl) + ' Fl.</small></b>' + kpill(r.st) + '</div>' +
+    '<div class="kbar"><i style="width:' + (r.ok / r.fl * 100).toFixed(1) + '%;background:#2F6B45"></i><i style="width:' + (r.bad / r.fl * 100).toFixed(1) + '%;background:#8A2B33"></i></div>' +
+    '<div class="kr3">' + num(r.ok) + ' im Fenster' + (r.bad ? ' · ' + num(r.bad) + ' nicht mehr' + (r.over ? ' (' + num(r.over) + ' schon vorbei)' : '') : '') + '</div></div>').join('') + '</div>';
+  const keyRows = '<div class="rkey"><span><i style="width:12px;height:8px;border-radius:2px;background:#2F6B45"></i>im Fenster</span><span><i style="width:12px;height:8px;border-radius:2px;background:#8A2B33"></i>nicht mehr im Fenster</span></div>';
+  const gapChart = (c, small) => {
+    const k = A.cat[c], max = Math.max(k.t * 1.3, ...k.avail, 1), H = small ? 70 : 120;
+    return '<div class="kgap' + (small ? ' sm' : '') + '" role="img" aria-label="' + esc(K.CAT_LABEL[c] + ': trinkreife Flaschen ' + k.years[0] + ' bis ' + k.years[k.years.length - 1] + ': ' + k.avail.join(', ') + '; Bedarf ' + Math.round(k.t) + ' pro Jahr') + '">' +
+      (k.t > 0 ? '<span class="need" style="bottom:' + (20 + k.t / max * H).toFixed(0) + 'px"></span>' : '') +
+      k.avail.map((v, i) => '<span class="kc"><b>' + v + '</b><i style="height:' + Math.max(2, v / max * H).toFixed(0) + 'px;background:' + (v < k.t ? '#C9813F' : '#2F6B45') + '"></i><em>' + k.years[i] + '</em></span>').join('') + '</div>';
+  };
+  const ph = { W: 'trinkreife Weißweine', R: 'trinkreife Rotweine', C: 'trinkreifen Champagner' };
+  const gapTxt = (c) => (A.cat[c].gap ? 'Ab ' + A.cat[c].gap + ' hast du weniger ' + ph[c] + ' als du trinkst – dafür jetzt Lagerweine kaufen, die dann reif sind.' : 'Bis ' + A.cat[c].years[A.cat[c].years.length - 1] + ' genug ' + ph[c] + ' – kein Kaufbedarf.');
+  const legend = '<div class="rkey"><span><i style="width:12px;height:8px;border-radius:2px;background:#2F6B45"></i>reicht</span><span><i style="width:12px;height:8px;border-radius:2px;background:#C9813F"></i>Lücke</span><span><i style="width:16px;border-top:2px dashed var(--ink)"></i>Bedarf</span></div>';
+  const cats = K.CATS.filter((c) => A.cat[c].fl);
+  if (S.wide) {
+    const recs = K.recommendations(D, A);
+    return '<div class="top"><div><div class="eyebrow">Vorschläge</div><h1>Kaufberatung</h1></div><div class="ktempo"><span>Dein Tempo<b>' + num(S.tempo) + ' Fl. / Jahr</b></span>' + stepper + '</div></div>' +
+      '<p class="note" style="text-align:right;margin-top:4px">' + tHint + '</p>' +
+      '<div class="khero wide"><div><div class="eyebrow" style="color:var(--gold)">Ergebnis</div><div class="kh">' + esc(result) + '. Erst trinken, nur Lagerweine für die Lücke kaufen.</div></div>' +
+      cats.map((c) => '<div class="kt"><span>' + K.CAT_LABEL[c] + '</span><b>' + yrs(A.cat[c].reach) + '</b><em>' + (A.cat[c].gap ? 'Lücke ab ' + A.cat[c].gap : 'versorgt') + '</em></div>').join('') + '</div>' +
+      '<div class="kgrid"><div class="card chart"><div class="eyebrow" style="letter-spacing:.1em">Reife-Lücke</div><p class="note" style="margin-top:2px">Trinkreife Flaschen je Jahr im Keller · gestrichelt dein Bedarf · orange = Lücke</p>' +
+      cats.map((c) => '<div class="kgh"><b>' + K.CAT_LABEL[c] + '</b><span>' + (A.cat[c].gap ? 'Lücke ab ' + A.cat[c].gap + ' · Bedarf ' + Math.round(A.cat[c].t) + ' Fl./Jahr' : 'versorgt') + '</span></div>' + gapChart(c, true)).join('') + '</div>' +
+      '<div class="kside">' + recs.map(recoCard).join('') + '</div></div>' +
+      '<div class="card chart" style="margin-top:12px"><div class="chart-head"><div><div class="eyebrow" style="letter-spacing:.1em">Schaffst du das im Fenster?</div><p class="note" style="margin-top:2px">Je Rebsorte bei deinem Tempo – dringendste Flaschen zuerst</p></div>' + keyRows + '</div>' + rows.replace('krows', 'krows two') + '</div>';
+  }
+  const c = K.CATS.includes(S.kCat) && A.cat[S.kCat].fl ? S.kCat : cats[0];
+  return backBtn('#/vorschlaege', 'Vorschläge') + head('Vorschläge', 'Kaufberatung') +
+    '<div class="card ktcard"><div class="ktrow"><div><div class="l">Dein Trinktempo</div><div class="v">' + num(S.tempo) + ' <small>Flaschen pro Jahr</small></div></div>' + stepper + '</div><p class="note">' + tHint + '</p></div>' +
+    '<div class="khero"><div class="eyebrow" style="color:var(--gold)">Ergebnis</div><div class="kh" style="font-size:20px">' + esc(result) + '</div><p>' + esc(sub) + '. Erst trinken, nur gezielt nachkaufen: Lagerweine für die Jahre, in denen die Reife-Lücke beginnt.</p></div>' +
+    boxT('Reife-Lücke', '<div class="mseg" role="group" aria-label="Weinart">' + cats.map((x) => '<button data-act="k-cat" data-k="' + x + '" aria-pressed="' + (x === c) + '">' + K.CAT_SHORT[x] + '</button>').join('') + '</div>',
+      '<p class="note" style="margin-top:0">Trinkreife Flaschen je Jahr im Keller – gestrichelt dein Bedarf (' + String(Math.round(A.cat[c].t * 10) / 10).replace('.', ',') + ' Fl./Jahr)</p>' + gapChart(c) + legend + '<p style="font:500 13px/1.45 var(--sans);margin:10px 0 0">' + gapTxt(c) + '</p>') +
+    boxT('Schaffst du das im Fenster?', '', '<p class="note" style="margin-top:0">Je Rebsorte: was du bei deinem Tempo im Trinkfenster trinkst – dringendste Flaschen zuerst</p>' + rows + keyRows);
+}
+const firstYear = (D) => { const d = [...D.purchases.map((p) => p.purchased_on), ...D.drinks.map((x) => x.drunk_on)].filter(Boolean).sort()[0]; return d ? d.slice(0, 4) : '–'; };
 
 /* ---------- Einstellungen / Import ---------- */
 export const TEMPLATE_URL = 'vorlage/Weinkeller-Importvorlage.xlsx';

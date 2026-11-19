@@ -6,6 +6,7 @@ import * as V from './views.js';
 import { readXlsx, readCsv, writeXlsx } from './xlsx.js';
 import * as XL from './excel.js';
 import * as R from './reife.js';
+import * as K from './kauf.js';
 
 const PREFS = 'wd_prefs_v1';
 const S = {
@@ -41,6 +42,10 @@ async function load() {
   ]);
   S.data = { producers, wines, purchases, drinks, wishlist };
   S.D = derive(S.data);
+  // Einstellungen je Konto (ab 1.4); fehlt die Tabelle, gilt der Vorschlag
+  try { const [st] = await api.selectAll('settings'); S.settings = (st && st.data) || {}; } catch (e) { console.warn('Einstellungen', e); S.settings = S.settings || {}; }
+  S.tempoOwn = !!S.settings.tempo;
+  S.tempo = S.settings.tempo || K.suggestedTempo(S.D);
   S.loaded = true;
   const need = wines.map((w) => w.label_path).filter((p) => p && !S.urls[p]);
   if (need.length) { try { Object.assign(S.urls, await api.signLabels(need)); } catch (e) { console.warn('Etiketten-Links', e); } }
@@ -53,10 +58,10 @@ function parseHash() {
   const [path, qs] = h.split('?');
   const parts = path.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(qs || '');
-  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', fotos: 'photos', reife: 'reife', vorschlaege: 'reco', wunschliste: 'wish' };
+  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', fotos: 'photos', reife: 'reife', kaufberatung: 'kauf', vorschlaege: 'reco', wunschliste: 'wish' };
   return { name: map[parts[0]] || 'home', arg: parts[1] || '', params };
 }
-const BACK_LABEL = { photos: 'Fotos nachtragen', home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr', reife: 'Trinkreife' };
+const BACK_LABEL = { photos: 'Fotos nachtragen', home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr', reife: 'Trinkreife', kauf: 'Kaufberatung' };
 function onRoute() {
   const r = parseHash();
   const prev = S.route;
@@ -113,13 +118,14 @@ function render(top) {
   else if (r.name === 'reife') { html = V.reifeView(S, D, r.params); tab = 'stats'; }
   else if (r.name === 'year') { html = V.yearView(S, D, Number(r.params.get('y')) || V.reviewYear()); tab = 'stats'; }
   else if (r.name === 'reco') { html = V.recoView(S, D); tab = 'reco'; }
+  else if (r.name === 'kauf') { html = V.kaufView(S, D); tab = 'reco'; }
   else if (r.name === 'wish') { html = V.wishView(S, D); tab = 'wish'; }
   else html = V.homeView(S, D);
   // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
-  const SIDE = { photos: 'regal', home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reife: 'reife', reco: 'reco', wish: 'wish', neu: 'neu' };
+  const SIDE = { photos: 'regal', home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reife: 'reife', reco: 'reco', kauf: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
   const split = html.startsWith('<div class="split wsplit">');
-  const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reife', 'reco', 'wish'].includes(r.name);
+  const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reife', 'reco', 'kauf', 'wish'].includes(r.name);
   const oldL = $('.wsplit .split-l'), keepL = split && oldL ? oldL.scrollTop : 0;
   app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
   // Liste links behält beim Durchklicken ihre Position, rechts startet das Detail oben
@@ -143,6 +149,7 @@ function listView(r, extra = {}) {
   const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
   return V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '', ...extra });
 }
+const saveSettings = debounce(() => guard(() => api.upsert('settings', [{ user_id: uid(), data: S.settings, updated_at: new Date().toISOString() }], 'user_id')), 500);
 // Neuer Wein: Trinkfenster-Vorschlag live aus den Formularfeldern
 function refreshNewReife() {
   const box = $('#nw-reife'), f = $('form[data-form=new]'); if (!box || !f || !S.form) return;
@@ -241,6 +248,10 @@ const actions = {
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
   'clear-dq'() { S.drunkQ = ''; const i = $('#dq'); if (i) { i.value = ''; i.focus(); } const c = $('.dsearch .clr'); if (c) c.classList.add('hidden'); refreshDrunk(); },
   'search-all'() { S.searchAll = !S.searchAll; render(); },
+  // Trinktempo (Flaschen pro Jahr): gilt für alle Geräte, gespeichert in „settings“
+  tempo(el) { S.tempo = Math.max(4, Math.min(120, S.tempo + Number(el.dataset.d))); S.tempoOwn = true; S.settings = { ...S.settings, tempo: S.tempo }; render(); saveSettings(); },
+  'tempo-reset'() { const { tempo, ...rest } = S.settings; S.settings = rest; S.tempoOwn = false; S.tempo = K.suggestedTempo(S.D); render(); saveSettings(); },
+  'k-cat'(el) { S.kCat = el.dataset.k; render(); },
   'reife-f'(el) { S.reifeF = el.dataset.k; render(); },
   'reife-edit'(el) { const w = S.D.byId.get(el.dataset.id); S.rw = { id: w.id, v: R.windowOf(w).win.slice() }; openSheet(V.reifeSheet(S, w)); },
   // Werte bleiben geordnet: ab ≤ Höhepunkt ab ≤ Höhepunkt bis ≤ bis
@@ -315,7 +326,7 @@ const forms = {
       const own = { user_id: 'eq.' + uid() };
       const labels = S.data.wines.map((w) => w.label_path).filter(Boolean);
       for (let i = 0; i < labels.length; i += 100) await api.deleteLabels(labels.slice(i, i + 100));
-      for (const [t, pct] of [['drinks', 30], ['purchases', 50], ['wines', 70], ['producers', 85], ['wishlist', 95]]) {
+      for (const [t, pct] of [['drinks', 30], ['purchases', 50], ['wines', 70], ['producers', 85], ['wishlist', 92], ['settings', 97]]) {
         const tx = $('#prog-text'), b = $('#prog-bar'); if (tx) tx.textContent = 'Lösche ' + t + ' …'; if (b) b.style.width = pct + '%';
         await api.remove(t, own);
       }

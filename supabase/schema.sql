@@ -104,11 +104,18 @@ drop trigger if exists wines_touch on public.wines;
 create trigger wines_touch before update on public.wines
   for each row execute function public.touch_updated_at();
 
+-- ===== Einstellungen je Konto (ab 1.4, z. B. Trinktempo) =====
+create table if not exists public.settings (
+  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- ===== Zugriffsregeln: jede Person nur ihre eigenen Zeilen =====
 do $$
 declare t text;
 begin
-  foreach t in array array['producers','wines','purchases','drinks','wishlist'] loop
+  foreach t in array array['producers','wines','purchases','drinks','wishlist','settings'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists own_rows on public.%I', t);
     execute format('create policy own_rows on public.%I for all to authenticated
