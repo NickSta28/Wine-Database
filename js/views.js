@@ -681,13 +681,13 @@ const MONL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'Aug
 export function yearView(S, D, y) {
   const years = yearsWithData(D);
   if (!years.includes(y)) y = years[0];
-  const x = yearStats(D, y), prev = years.includes(y - 1) ? yearStats(D, y - 1) : null;
+  const x = yearStats(D, y), p0 = years.includes(y - 1) ? yearStats(D, y - 1) : null, prev = p0 && p0.fl ? p0 : null; // Vergleich nur, wenn im Vorjahr etwas getrunken wurde
   const chips = '<div class="chips wjy" role="group" aria-label="Jahr wählen">' + years.map((k) => '<a class="chip" href="#/weinjahr?y=' + k + '" aria-pressed="' + (k === y) + '"' + (k === y ? ' aria-current="page"' : '') + '>' + k + '</a>').join('') + '</div>';
   const delta = prev ? x.fl - prev.fl : null;
   const tsum = x.types.reduce((s, t) => s + t[1], 0) || 1;
   const hero = '<div class="wjhero"><div class="r1"><div><div class="l">Getrunken ' + y + '</div><div class="big"><b>' + num(x.fl) + '</b><span>' + (x.fl === 1 ? 'Flasche' : 'Flaschen') + '</span></div>' +
     '<div class="l2">' + (x.n ? 'in ' + plural(x.n, 'Eintrag', 'Einträgen') + (x.fl ? ' · Ø ' + eur2(x.val / x.fl) + ' pro Flasche' : '') : 'noch keine Einträge mit Datum') + '</div></div>' +
-    '<div class="rt"><div class="l">Genossen für</div><div class="v">' + eur(x.val, 0) + '</div><div class="dl' + (delta == null ? '' : delta >= 0 ? ' up' : ' down') + '">' + (delta == null ? 'erstes erfasstes Jahr' : (delta >= 0 ? '+' : '−') + Math.abs(delta) + ' Fl. ggü. ' + (y - 1)) + '</div></div></div>' +
+    '<div class="rt"><div class="l">Genossen für</div><div class="v">' + eur(x.val, 0) + '</div><div class="dl' + (delta == null ? '' : delta >= 0 ? ' up' : ' down') + '">' + (delta == null ? (x.fl ? 'erstes Jahr mit Einträgen' : '') : delta === 0 ? 'so viele wie ' + (y - 1) : Math.abs(delta) + ' Fl. ' + (delta > 0 ? 'mehr' : 'weniger') + ' als ' + (y - 1) + ' (' + num(prev.fl) + ')') + '</div></div></div>' +
     (x.types.length ? '<div class="tbar" aria-hidden="true">' + x.types.map(([k, v]) => '<i style="flex:' + v + ';background:' + (TYPE_COLOR[k] || '#CFC4B6') + '"></i>').join('') + '</div><div class="tlg">' + x.types.map(([k, v]) => '<span><i style="background:' + (TYPE_COLOR[k] || '#CFC4B6') + '"></i>' + esc(k) + ' ' + num(v) + '</span>').join('') + '</div>' : '') + '</div>';
   const kpis = '<div class="kpis" style="margin-top:10px"><div class="kpi"><div class="l">Gekauft</div><div class="v">' + num(x.pfl) + ' Fl.</div></div><div class="kpi"><div class="l">Ausgegeben</div><div class="v">' + eur(x.peur, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + x.ja + '×</div></div></div>';
   const mmax = Math.max(1, ...x.months.flat()), pk = x.months.reduce((b, m, i) => (m[0] > x.months[b][0] ? i : b), 0);

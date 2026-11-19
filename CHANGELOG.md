@@ -3,6 +3,9 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.2.1 – 19.11.2026
+- Weinjahr: Vergleich zum Vorjahr verständlicher formuliert („53 Fl. weniger als 2022 (71)“ statt „−53 Fl. ggü. 2022“)
+
 ## 1.2.0 – 19.11.2026 · Weinjahr, Preis pro Flasche, Bewertung
 - „Dein Weinjahr“: Rückblick je Jahr mit getrunkenen und gekauften Flaschen, Genusswert, Vergleich zum Vorjahr, Monat für Monat, „Neu entdeckt“ (Regionen, Weingüter, Rebsorten – Absprung zum ersten Wein), Rebsorten, Lieblinge, „Nochmal kaufen“ und Anlässe
 - Einstieg: schmale Karte über den Statistik-Reitern, auf der Übersicht vom 1. Dezember bis 31. Januar eine Rückblick-Karte (ausblendbar), auf dem iPad eigener Eintrag in der Seitenleiste
