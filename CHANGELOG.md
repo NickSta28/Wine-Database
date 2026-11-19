@@ -3,6 +3,18 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.3.0 – 19.11.2026 · Trinkreife
+- Trinkfenster je Wein (trinkbar ab, Höhepunkt, trinkbar bis) mit Status „Fenster vorbei“, „Jetzt trinken“, „Trinkreif“, „Noch warten“
+- Erste Schätzung für alle Weine im Bestand; neue Weine bekommen einen Vorschlag nach Rebsorte, Qualitätsstufe (aus dem Namen, sonst aus dem Preis) und Jahrgang, Champagner ohne Jahrgang ab Kaufjahr
+- Wein-Detail: Karte „Trinkreife“ mit Zeitstrahl (Reifezeit, Trinkfenster, Höhepunkt, heute), Einordnung und Trinktempo; „Anpassen“ mit −/+ je Jahr und „Zur Schätzung“
+- Reife-Notiz beim Trinken passt das Fenster der übrigen Flaschen desselben Weins an (zu jung → später, drüber → Ende jetzt, genau richtig → Höhepunkt schließt das Jahr ein); eigene Angaben bleiben unverändert
+- Übersicht: Karte „Jetzt trinken“ mit den drei am stärksten gefährdeten Weinen (Flaschen × wie schnell der Wein kippt × Zeit seit/bis Fensterende)
+- Statistik Bestand: „Reife im Keller“ (Flaschen/Wert) und „Reife nach Rebsorte“, nach Kreisdiagramm und Top-Rebsorten
+- Neue Seite „Trinkfenster im Keller“: alle Weine dringend zuerst, Filter nach Status und Rebsorte; auf dem iPad als Zeitleiste mit eigenem Eintrag in der Seitenleiste
+- Neuer Wein: Vorschlag für das Trinkfenster, Qualitätsstufe antippbar
+- Excel-Vorlage, -Import und -Export um „Trinkbar ab“, „Höhepunkt“, „Trinkbar bis“ ergänzt; leer gelassen wird geschätzt
+- Datenbank: neue Felder `drink_from`, `peak_from`, `peak_to`, `drink_to`, `window_src` in `wines`
+
 ## 1.2.4 – 19.11.2026
 - Getrunken: Suchfeld über der Liste – sucht in Wein, Weingut, Rebsorte, Region, Jahrgang, Händler sowie Trinknotiz, Anlass, Datum, Bewertung und Reife; mehrere Begriffe werden kombiniert (z. B. „2022 Riesling“), Filter-Chips wirken zusätzlich; Suche bleibt beim Zurückkommen vom Wein erhalten
 

@@ -28,10 +28,19 @@ create table if not exists public.wines (
   description text,                     -- Beschreibung (z. B. vom Händler übernommen)
   my_note text,                         -- eigene Notiz zum Wein allgemein
   label_path text,                      -- Etikett im Speicher "labels": <user_id>/<datei>
+  drink_from smallint,                  -- Trinkfenster (ab 1.3): trinkbar ab
+  peak_from smallint,                   --   Höhepunkt ab
+  peak_to smallint,                     --   Höhepunkt bis
+  drink_to smallint,                    --   trinkbar bis
+  window_src text check (window_src in ('est','note','own')), -- Schätzung, per Reife-Notiz angepasst, eigene Angabe
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index if not exists wines_user_idx on public.wines(user_id);
+-- Nachrüsten bestehender Datenbanken (1.3)
+alter table public.wines add column if not exists drink_from smallint, add column if not exists peak_from smallint,
+  add column if not exists peak_to smallint, add column if not exists drink_to smallint,
+  add column if not exists window_src text check (window_src in ('est','note','own'));
 create index if not exists wines_producer_idx on public.wines(producer_id);
 
 -- ===== Käufe (Zugang in den Keller) =====

@@ -26,4 +26,5 @@ Der Projekt-Inhaber kann im Supabase-Dashboard technisch alle Daten einsehen.
 
 Vorlage: `vorlage/Weinkeller-Importvorlage.xlsx` (auch in der App unter Einstellungen bzw. auf der Startseite eines leeren Kontos).
 Mindestangaben im Blatt „Weine“: Weingut, Wein, Weinart, Rebsorte, Flaschen im Keller. Optional die Blätter „Käufe“, „Getrunken“ und „Wunschliste“.
+Optional im Blatt „Weine“: „Trinkbar ab“, „Höhepunkt“ (z. B. 2025–2028), „Trinkbar bis“ – fehlen sie, schätzt die App das Trinkfenster (Regeln in `js/reife.js`).
 Andere Excel-Listen werden ebenfalls gelesen; Spalten lassen sich vor dem Import zuordnen. Die Datei wird nur im Browser gelesen.

@@ -3,6 +3,7 @@ import { esc, eur, eur2, fl, num, deDate, deDayMonth, yearOf, plural, today } fr
 import { TYPES, STYLES, TYPE_COLOR, CAP_COLORS, BUY_AGAIN, faecher, layout, matcher, totals, groupSum, capOf, tintOf } from './model.js';
 import { VERSION } from './version.js';
 import { ROLES, headers } from './excel.js';
+import * as R from './reife.js';
 
 /* ---------- Icons ---------- */
 const P = {
@@ -22,7 +23,9 @@ const P = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   shelf: '<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>'
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+  hour: '<path d="M7 3.5h10M7 20.5h10M8 3.5c0 4 8 5 8 8.5s-8 4.5-8 8.5M16 3.5c0 4-8 5-8 8.5s8 4.5 8 8.5"/>'
 };
 export const icon = (n, cls = 'i') => '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
 
@@ -37,7 +40,7 @@ export function nav(tab, side) {
     // Seitenleiste für breite Bildschirme (iPad quer); per CSS ein- und ausgeblendet
     '<nav class="side" aria-label="Hauptnavigation"><div class="brand">' + logo('lgs') + '<span>Weinkeller</span></div>' +
     s('', 'home', 'grid', 'Übersicht') + s('regal', 'regal', 'shelf', 'Weinregal') + s('getrunken', 'drunk', 'clock', 'Getrunken') +
-    '<i class="gap"></i>' + s('statistik', 'stats', 'stats', 'Statistik') + s('weinjahr', 'year', 'cal', 'Weinjahr') + s('vorschlaege', 'reco', 'glass', 'Vorschläge') + s('wunschliste', 'wish', 'heart', 'Wunschliste') +
+    '<i class="gap"></i>' + s('statistik', 'stats', 'stats', 'Statistik') + s('weinjahr', 'year', 'cal', 'Weinjahr') + s('reife', 'reife', 'hour', 'Trinkreife') + s('vorschlaege', 'reco', 'glass', 'Vorschläge') + s('wunschliste', 'wish', 'heart', 'Wunschliste') +
     '<div class="foot"><a class="btn" href="#/neu"' + (side === 'neu' ? ' aria-current="page"' : '') + '>' + icon('plus') + 'Neuer Wein</a>' +
     '<button class="it" data-act="settings">' + icon('gear') + '<span>Einstellungen</span></button></div></nav>';
 }
@@ -89,7 +92,7 @@ export function homeView(S, D) {
     '<div><div class="l">Im Keller</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:2px"><span class="big">' + num(t.stock) + '</span><span style="color:#D8C8BE">Flaschen</span></div></div>' +
     '<div style="text-align:right"><div class="l">Lagerwert</div><div style="font:600 24px var(--head);margin-top:2px">' + eur(t.value, 0) + '</div>' +
     '<div class="l" style="margin-top:4px">Ø ' + eur2(t.stock ? t.value / t.stock : 0) + ' / Flasche</div></div></div>' +
-    '<div class="bar">' + bar + '</div><div class="legend">' + lg + '</div></div>' +
+    '<div class="bar">' + bar + '</div><div class="legend">' + lg + '</div></div>' + reifeHome(D) +
     '<a class="search" href="#/regal?focus=1" style="display:block"><span class="box">' + icon('search') + '<span>Wein, Weingut oder Rebsorte suchen</span></span></a>' +
     (last ? '<div class="sec">Zuletzt getrunken</div><a class="card" href="#/wein/' + last.w.id + '" style="display:flex;gap:14px;padding:14px 16px">' +
       '<span style="width:6px;border-radius:3px;flex:none;background:' + TYPE_COLOR[last.w.wine_type] + '"></span><span style="min-width:0">' +
@@ -283,7 +286,7 @@ export function detailView(S, D, w, opts = {}) {
     (w.style ? '<span class="tag">' + esc(w.style) + '</span>' : '') + (ba ? '<span class="tag" style="background:#DCE5D0">Nochmal kaufen: ' + ba + '</span>' : '') + '</div>' +
     '<div class="kpis"><div class="kpi dark"><div class="l">Im Keller</div><div class="v">' + fl(w.stock) + '</div></div><div class="kpi"><div class="l">Getrunken</div><div class="v">' + fl(w.drunk) + '</div></div><div class="kpi"><div class="l">Lagerwert</div><div class="v">' + eur(w.value) + '</div></div></div>' +
     '<div class="btns"><button class="btn" data-act="drink" data-id="' + w.id + '"' + (w.stock ? '' : ' disabled') + '>' + icon('glass') + 'Flasche getrunken</button><button class="btn ghost" data-act="purchase" data-id="' + w.id + '">' + icon('plus') + 'Kauf erfassen</button></div>' +
-    '<div class="sec">Steckbrief</div><div class="card facts">' + facts.map(([l, v]) => '<div><div class="l">' + esc(l) + '</div><div class="v">' + esc(v) + '</div></div>').join('') + '</div>' +
+    reifeCard(w) + '<div class="sec">Steckbrief</div><div class="card facts">' + facts.map(([l, v]) => '<div><div class="l">' + esc(l) + '</div><div class="v">' + esc(v) + '</div></div>').join('') + '</div>' +
     (evs.length ? '<div class="sec">Verlauf</div><div class="card">' + evs.map(ev).join('') + '</div>' : '') +
     (w.my_note ? '<div class="sec">Meine Notiz</div><div class="card quote">' + esc(w.my_note) + '</div>' : '') +
     '<div class="sec">Beschreibung</div>' + (w.description ? '<p class="prose" style="margin:0">' + esc(w.description) + '</p>' : '<p class="note" style="margin-top:0">Noch keine Beschreibung. Über die Händler-Suche findest du den Wein und kannst die Beschreibung per „Bearbeiten“ einfügen.</p>') +
@@ -409,6 +412,7 @@ function capPicker(sel, producerName) {
   return '<div class="sec" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><span>Kapselfarbe</span><span id="cap-hint" style="text-transform:none;letter-spacing:0;font-weight:400">' + (producerName ? 'gilt für alle Weine von ' + esc(producerName) : 'gilt für alle Weine dieses Weinguts') + '</span></div>' +
     '<div class="swatches" role="group" aria-label="Kapselfarbe wählen">' + CAP_COLORS.map(([l, c]) => '<button type="button" class="sw" data-act="cap" data-c="' + c + '" aria-label="' + l + '" aria-pressed="' + ((sel || '') === c) + '">' + cap(c || '#262C29', 's32') + '</button>').join('') + '</div>';
 }
+const numIn = (v) => { const n = Number(String(v || '').replace(',', '.')); return String(v || '').trim() && Number.isFinite(n) ? n : null; };
 export function newView(S, D) {
   const f = S.form;
   return head(f.wishId ? 'Von der Wunschliste' : 'Neu im Keller', 'Neuer Wein') + datalists(D) +
@@ -419,6 +423,7 @@ export function newView(S, D) {
     '<div class="sec">Wein</div>' + wineFields(D, f.wine) +
     '<div class="sec">Kauf</div><div class="fgrid"><div class="frow">' + fld('qty', 'Anzahl', 'type="number" inputmode="numeric" min="0" max="999"', f.qty) + fld('price', 'Preis / Fl. (€)', 'type="text" inputmode="decimal" autocomplete="off"', f.price) + '</div>' +
     '<div class="frow">' + fld('merchant', 'Bezogen über', 'list="dl-merch" autocomplete="off"', f.merchant) + fld('purchased_on', 'Kaufdatum', 'type="date"', f.date || today()) + '</div></div>' +
+    '<div class="sec">Trinkfenster</div><div class="card" style="padding:16px" id="nw-reife">' + newReife({ ...f.wine, price: numIn(f.price) }, f.tier) + '</div>' +
     capPicker(f.cap, f.wine.producer) +
     '<div class="sec">Beschreibung</div><div class="field"><label for="description">z. B. vom Händler übernommen</label><textarea id="description" name="description" rows="4">' + esc(f.wine.description || '') + '</textarea></div>' +
     '<p class="note">Beschreibung suchen (öffnet die Suche in einem neuen Tab, Text dann hier einfügen):</p><div id="shop-links">' + shopLinks(f.wine) + '</div>' +
@@ -445,9 +450,9 @@ export function starsInput(r) {
 export const starsShow = (r) => (r ? '<span class="srow" role="img" aria-label="' + r + ' von 5 Sternen">' + [1, 2, 3, 4, 5].map((n) => '<i' + (n <= r ? ' class="on"' : '') + '>' + STAR + '</i>').join('') + '</span>' : '');
 export function maturityHint(m, left) {
   const fl = left === 1 ? 'Die übrige Flasche' : left > 1 ? 'Die übrigen ' + left + ' Flaschen' : '';
-  if (!m) return 'Hilft ab Version 1.3, das Trinkfenster der übrigen Flaschen anzupassen.';
+  if (!m) return 'Deine Einschätzung passt das Trinkfenster der übrigen Flaschen an.';
   if (!fl) return 'Gespeichert – hilft bei künftigen Jahrgängen dieses Weins.';
-  return m === 'jung' ? fl + ' ' + (left === 1 ? 'bekommt' : 'bekommen') + ' ab 1.3 ein späteres Trinkfenster.' : m === 'drueber' ? fl + ' ' + (left === 1 ? 'rückt' : 'rücken') + ' ab 1.3 nach vorn: bald trinken.' : 'Passt – das Trinkfenster ' + (left === 1 ? 'der übrigen Flasche' : 'der übrigen Flaschen') + ' bleibt.';
+  return m === 'jung' ? fl + ' ' + (left === 1 ? 'bekommt' : 'bekommen') + ' ein späteres Trinkfenster.' : m === 'drueber' ? fl + ' ' + (left === 1 ? 'rückt' : 'rücken') + ' nach vorn: bald trinken.' : 'Passt – der Höhepunkt schließt dieses Jahr ein.';
 }
 export function drinkSheet(S, w, d = null) {
   const sel = S.form.buyAgain;
@@ -655,7 +660,7 @@ function statPart(S, D, tab) {
       });
       body = sg(box('Rot, Weiß & Co.', donut(parts, t.stock, 'Flaschen', (k) => listHref('type', k))) +
         barBox(S, 'Rebsorten im Keller', groupSum(inS, (w) => w.grape, (w) => w.stock), num, 'grape', (k) => listHref('grape', k)) +
-        priceBox(S, D, 'stock') +
+        reifeBox(S, D) + priceBox(S, D, 'stock') +
         barBox(S, 'Regionen', groupSum(inS, (w) => w.region, (w) => w.stock), num, 'region', (k) => listHref('region', k)) +
         (vint.length ? box('Jahrgänge im Keller', cols(vint, num, (k) => listHref('vintage', k))) : '') +
         matrixBox(inS) +
@@ -918,4 +923,112 @@ export function xlSheet(S) {
 }
 export function progressSheet(title, text, pct) {
   return '<h2>' + esc(title) + '</h2><p class="sub" id="prog-text">' + esc(text) + '</p><div class="progress"><i id="prog-bar" style="width:' + pct + '%"></i></div>';
+}
+
+/* ---------- Trinkreife (ab 1.3) ---------- */
+// Zeitstrahl: Reifezeit (Linie ab Jahrgang), Trinkfenster, Höhepunkt, Markierung heute; Jahre einschließlich
+export function reifeLine(win, vintage, A, B, opt = {}) {
+  const x = (y) => (Math.max(0, Math.min(1, (y - A) / (B - A))) * 100).toFixed(2) + '%';
+  const w = (a, b) => (Math.max(0, Math.min(B, b) - Math.max(A, a)) / (B - A) * 100).toFixed(2) + '%';
+  const d = new Date(), now = d.getFullYear() + d.getMonth() / 12 + d.getDate() / 365;
+  const v = vintage && vintage < win[0] ? vintage : null;
+  return '<div class="rtl' + (opt.cls ? ' ' + opt.cls : '') + '" role="img" aria-label="' + esc((vintage ? 'Jahrgang ' + vintage + ', ' : '') + 'trinkbar ' + win[0] + ' bis ' + win[3] + ', Höhepunkt ' + win[1] + ' bis ' + win[2]) + '">' +
+    (v ? '<i class="st" style="left:' + x(v) + ';width:' + w(v, win[0]) + '"></i><i class="vd" style="left:' + x(v) + '"></i>' : '') +
+    '<i class="wn" style="left:' + x(win[0]) + ';width:' + w(win[0], win[3] + 1) + '"></i><i class="pk" style="left:' + x(win[1]) + ';width:' + w(win[1], win[2] + 1) + '"></i>' +
+    (now >= A && now <= B ? '<i class="td" style="left:' + x(now) + '">' + (opt.today ? '<b>heute</b>' : '') + '</i>' : '') +
+    (opt.ticks ? opt.ticks.map((y) => '<span class="tk" style="left:' + x(y) + '">' + y + '</span>').join('') : '') + '</div>';
+}
+const pill = (st, text) => '<span class="rpill" style="color:' + R.STATUS[st].color + ';background:' + R.STATUS[st].bg + '">' + esc(text || R.STATUS[st].label) + '</span>';
+const dotC = (k) => R.STATUS[k].bar || R.STATUS[k].color;
+const SRC_TXT = { rule: 'Schätzung nach Rebsorte, Qualitätsstufe und Jahrgang. Deine Reife-Notiz beim Trinken passt das Fenster an.', est: 'Schätzung nach Rebsorte, Qualitätsstufe und Jahrgang. Deine Reife-Notiz beim Trinken passt das Fenster an.', note: 'Durch deine Reife-Notiz angepasst. Weitere Notizen passen es weiter an.', own: 'Von dir festgelegt – Reife-Notizen ändern es nicht mehr.' };
+const yspan = (a, b) => (a === b ? String(a) : a + ' – ' + b);
+
+export function reifeCard(w) {
+  if (w.stock <= 0) return '';
+  const { win, src } = R.windowOf(w), st = R.statusOf(win), t = R.sentence(win, st, w.stock);
+  const A = Math.min(w.vintage || win[0], win[0]), B = Math.max(win[3] + 2, R.nowYear() + 2);
+  return '<div class="sec rsec"><span>Trinkreife</span>' + pill(st) + '</div><div class="card rcard">' +
+    '<div class="rt">' + esc(t.t) + '</div><div class="rs">' + esc(t.s) + '</div>' +
+    reifeLine(win, w.vintage, A, B, { cls: 'lg', today: true, ticks: [A, B] }) +
+    '<div class="rf3"><div><span>Trinkbar ab</span><b>' + win[0] + '</b></div><div><span>Höhepunkt</span><b class="pk">' + yspan(win[1], win[2]) + '</b></div><div><span>Trinkbar bis</span><b>' + win[3] + '</b></div></div>' +
+    '<div class="rfoot">' + icon('info') + '<span>' + esc(SRC_TXT[src]) + '</span><button class="btn ghost small" data-act="reife-edit" data-id="' + w.id + '">Anpassen</button></div></div>';
+}
+
+// Bearbeiten: vier Jahreswerte mit −/+, Vorschau aktualisiert sich
+export function reifeSheet(S, w) {
+  const v = S.rw.v, st = R.statusOf(v);
+  const L = [['Trinkbar ab', 'a'], ['Höhepunkt ab', 'p'], ['Höhepunkt bis', 'p'], ['Trinkbar bis', 'b']];
+  const est = R.estimate(w), same = v.join() === est.join();
+  const A = Math.min(w.vintage || v[0], v[0]), B = Math.max(v[3] + 2, R.nowYear() + 2);
+  return '<h2>Trinkfenster anpassen</h2><p class="sub" style="margin:-6px 0 14px">' + esc([w.name, w.vintage, w.stock ? fl(w.stock) : ''].filter(Boolean).join(' · ')) + '</p>' +
+    '<form data-form="reife" data-id="' + w.id + '" novalidate><div class="rprev"><div class="rph"><span>Vorschau</span>' + pill(st) + '</div>' + reifeLine(v, w.vintage, A, B, { today: true, ticks: [A, B] }) + '</div>' +
+    '<div class="rsteps">' + L.map(([l, c], i) => '<div class="rstep"><i class="sw ' + c + '"></i><span class="l">' + l + '</span>' +
+      '<button type="button" data-act="rw-step" data-i="' + i + '" data-d="-1" aria-label="' + l + ' ein Jahr früher">−</button><b>' + v[i] + '</b>' +
+      '<button type="button" data-act="rw-step" data-i="' + i + '" data-d="1" aria-label="' + l + ' ein Jahr später">+</button></div>').join('') + '</div>' +
+    '<div class="rreset"><span class="note">' + (same ? 'Entspricht der Regel-Schätzung (' + yspan(est[0], est[3]) + ').' : 'Wird als deine Angabe gespeichert – Reife-Notizen ändern sie dann nicht mehr.') + '</span>' +
+    (same ? '' : '<button type="button" class="lnk" data-act="rw-reset">Zur Schätzung</button>') + '</div>' +
+    '<div class="btns"><button type="button" class="btn ghost" data-act="close">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+}
+
+// Übersicht: „Jetzt trinken“ mit den drei am stärksten gefährdeten Weinen
+export function reifeHome(D) {
+  const c = R.cellar(D), s = R.summary(c), due = s.over.fl + s.now.fl, tot = c.reduce((a, x) => a + x.w.stock, 0);
+  if (!c.length || !due) return '';
+  const top = c.filter((x) => x.st === 'over' || x.st === 'now').slice(0, 3);
+  return '<div class="card rhome"><div class="rh"><div><div class="eyebrow" style="color:#A55A12">Jetzt trinken</div><div class="rt">' + num(due) + ' ' + (due === 1 ? 'Flasche ist' : 'Flaschen sind') + ' dran</div></div><span class="note" style="margin:0">von ' + num(tot) + '</span></div>' +
+    reifeStack(s, 'fl') + '<div class="rlg">' + R.STATUS_ORDER.filter((k) => s[k].fl).map((k) => '<span><i style="background:' + dotC(k) + '"></i>' + (k === 'wait' ? 'Warten' : R.STATUS[k].label) + ' ' + num(s[k].fl) + '</span>').join('') + '</div>' +
+    '<div class="rlist">' + top.map((x) => '<a class="rrow" href="#/wein/' + x.w.id + '">' + cap(capOf(x.w), 'rcap') + '<span class="tx"><span class="t">' + esc(x.w.name) + '</span><span class="s">' + esc([x.w.producer, x.w.vintage, fl(x.w.stock)].filter(Boolean).join(' · ')) + '</span></span>' +
+      pill(x.st, x.st === 'over' ? 'seit ' + (x.win[3] + 1) + ' vorbei' : 'bis ' + x.win[3]) + '</a>').join('') + '</div>' +
+    '<a class="rmore" href="#/reife">Alle nach Dringlichkeit' + icon('chev') + '</a></div>';
+}
+const reifeStack = (s, k) => '<div class="rstack" aria-hidden="true">' + R.STATUS_ORDER.filter((x) => s[x][k] > 0).map((x) => '<i style="flex:' + s[x][k].toFixed(2) + ';background:' + dotC(x) + '"></i>').join('') + '</div>';
+
+// Statistik Bestand: Reife im Keller und nach Rebsorte
+export function reifeBox(S, D) {
+  const c = R.cellar(D); if (!c.length) return '';
+  const s = R.summary(c), eurM = ((S.metric || {}).reife || 'qty') === 'eur', k = eurM ? 'eur' : 'fl';
+  const fmt = (v) => (eurM ? eur(v, 0) : num(v) + ' Fl.');
+  const top = groupSum(c, (x) => x.w.grape || 'ohne Rebsorte', (x) => x.w.stock).slice(0, 6).map((g) => g[0]);
+  const gk = (x) => (top.includes(x.w.grape || 'ohne Rebsorte') ? x.w.grape || 'ohne Rebsorte' : x.w.wine_type === 'Rotwein' ? 'Weitere Rote' : 'Weitere Weiße & Co.');
+  const groups = [...new Set(c.map(gk))].map((g) => { const xs = c.filter((x) => gk(x) === g); return { g, s: R.summary(xs), t: xs.reduce((a, x) => a + (eurM ? x.w.value || 0 : x.w.stock), 0) }; }).sort((a, b) => b.t - a.t);
+  const max = Math.max(1, ...groups.map((g) => g.t));
+  return boxT('Reife im Keller', metricSeg(S, 'reife', 'qty', 'Wert'), reifeStack(s, k).replace('rstack', 'rstack big') +
+    '<div class="rst">' + R.STATUS_ORDER.filter((x) => s[x].wines).map((x) => '<a class="row" href="#/reife?st=' + x + '"><i class="rdot" style="background:' + dotC(x) + '"></i><span class="tx"><span class="t">' + R.STATUS[x].label + '</span><span class="s">' + plural(s[x].wines, 'Wein', 'Weine') + ' · ' + esc(R.STATUS[x].hint) + '</span></span><b>' + fmt(s[x][k]) + '</b>' + icon('chev', 'i hchev') + '</a>').join('') + '</div>') +
+    boxT('Reife nach Rebsorte', '', '<div class="rgr">' + groups.map((g) => '<a href="#/reife?g=' + encodeURIComponent(g.g) + '"><span class="h"><span>' + esc(g.g) + '</span><em>' + fmt(g.t) + '</em></span><span class="b">' +
+      R.STATUS_ORDER.filter((x) => g.s[x][k] > 0).map((x) => '<i style="width:' + (g.s[x][k] / max * 100).toFixed(2) + '%;background:' + dotC(x) + '"></i>').join('') + '</span></a>').join('') + '</div>');
+}
+
+// Seite Trinkreife: alle Weine im Bestand, dringend zuerst, Filter nach Status (und optional Rebsorte)
+export function reifeView(S, D, params) {
+  const all = R.cellar(D), gf = params.get('g') || '';
+  const top = groupSum(all, (x) => x.w.grape || 'ohne Rebsorte', (x) => x.w.stock).slice(0, 6).map((g) => g[0]);
+  const gk = (x) => (top.includes(x.w.grape || 'ohne Rebsorte') ? x.w.grape || 'ohne Rebsorte' : x.w.wine_type === 'Rotwein' ? 'Weitere Rote' : 'Weitere Weiße & Co.');
+  const c = gf ? all.filter((x) => gk(x) === gf) : all;
+  const s = R.summary(c), f = R.STATUS[S.reifeF] ? S.reifeF : 'all';
+  if (!all.length) return head('Trinkreife', 'Trinkfenster') + '<div class="empty"><b>Noch kein Bestand</b></div>';
+  const ys = c.flatMap((x) => [x.w.vintage || x.win[0], x.win[3]]);
+  const A = Math.max(Math.min(...ys), R.nowYear() - 10), B = Math.min(Math.max(...ys) + 1, R.nowYear() + 20);
+  const ticks = []; const step = B - A > 16 ? 4 : 2; for (let y = Math.ceil(A / step) * step; y <= B; y += step) ticks.push(y);
+  const chip = (k, l, col, n) => '<button class="rchip" data-act="reife-f" data-k="' + k + '" aria-pressed="' + (f === k) + '" style="--c:' + col + '"><span><i></i>' + l + '</span><b>' + num(n) + ' <small>Fl.</small></b></button>';
+  const tot = c.reduce((a, x) => a + x.w.stock, 0);
+  const row = (x) => '<a class="rtrow" href="#/wein/' + x.w.id + '" aria-label="' + esc(x.w.name + ', ' + R.STATUS[x.st].label) + '"><span class="nm"><span class="t">' + esc(x.w.name) + '</span><span class="s">' + esc([x.w.producer, x.w.vintage || 'NV', fl(x.w.stock)].filter(Boolean).join(' · ')) + '</span></span>' +
+    reifeLine(x.win, x.w.vintage, A, B) + '<span class="end">' + (x.st === 'wait' ? 'ab ' + x.win[0] : 'bis ' + x.win[3]) + (x.src === 'own' ? ' ·&nbsp;eigene' : '') + '</span></a>';
+  const groups = R.STATUS_ORDER.filter((k) => (f === 'all' || f === k) && s[k].wines).map((k) =>
+    '<div class="rtg"><i style="background:' + dotC(k) + '"></i><b>' + R.STATUS[k].label + '</b><span>' + plural(s[k].wines, 'Wein', 'Weine') + ' · ' + num(s[k].fl) + ' Fl. · ' + esc(R.STATUS[k].hint) + '</span></div>' +
+    c.filter((x) => x.st === k).map(row).join('')).join('');
+  return '<div class="top"><div><div class="eyebrow">Statistik · Trinkreife</div><h1>Trinkfenster im Keller</h1></div><div class="note" style="text-align:right;margin:0">' + plural(c.length, 'Wein', 'Weine') + ' · ' + num(tot) + ' Flaschen<br>dringend zuerst</div></div>' +
+    (gf ? '<div class="btns" style="margin-top:0"><a class="chip" aria-pressed="true" href="#/reife">' + esc(gf) + ' ' + icon('x', 'i') + '</a></div>' : '') +
+    '<div class="rchips" role="group" aria-label="Filter nach Reife">' + chip('all', 'Alle', '#2B2024', tot) + R.STATUS_ORDER.map((k) => chip(k, R.STATUS[k].label, dotC(k), s[k].fl)).join('') + '</div>' +
+    '<div class="card rtl-card"><div class="rtax"><span class="nm">Wein · Flaschen</span><div class="rtl axis">' + ticks.map((y) => '<span class="tk" style="left:' + ((y - A) / (B - A) * 100).toFixed(2) + '%">' + y + '</span>').join('') + '</div><span class="end"></span></div>' + (groups || '<p class="note">Keine Weine in dieser Gruppe.</p>') +
+    '<div class="rkey"><span><i class="k1"></i>Reifezeit</span><span><i class="k2"></i>Trinkfenster</span><span><i class="k3"></i>Höhepunkt</span><span><i class="k4"></i>heute</span></div></div>';
+}
+
+// Neuer Wein: Vorschlag aus Rebsorte, Qualitätsstufe, Jahrgang
+export function newReife(w, tierSel) {
+  const tier = tierSel || R.detectTier(w), win = R.estimate(w, tier);
+  const A = Math.min(w.vintage || win[0], win[0]), B = Math.max(win[3] + 1, R.nowYear() + 1);
+  return '<p class="note" style="margin-top:0">Qualitätsstufe – ' + (tierSel ? 'von dir gewählt' : 'aus Name und Preis erkannt') + ', antippen zum Ändern:</p>' +
+    '<div class="opts tiers" role="group" aria-label="Qualitätsstufe">' + R.TIERS.map(([k, l]) => '<button type="button" data-act="nw-tier" data-k="' + k + '" aria-pressed="' + (tier === k) + '">' + l + '</button>').join('') + '</div>' +
+    '<div class="rprev" style="margin-top:12px"><div class="rph"><b>Vorschlag ' + win[0] + ' – ' + win[3] + '</b><span style="color:var(--wine);font-weight:600">Höhepunkt ' + yspan(win[1], win[2]) + '</span></div>' + reifeLine(win, w.vintage, A, B, { today: true, ticks: [A, B] }) + '</div>' +
+    '<p class="note">Wird mit dem Wein gespeichert und lässt sich später auf der Wein-Seite anpassen.</p>';
 }

@@ -5,6 +5,7 @@ import { derive, faecher, matcher, topSearches, CAP_COLORS } from './model.js';
 import * as V from './views.js';
 import { readXlsx, readCsv, writeXlsx } from './xlsx.js';
 import * as XL from './excel.js';
+import * as R from './reife.js';
 
 const PREFS = 'wd_prefs_v1';
 const S = {
@@ -52,10 +53,10 @@ function parseHash() {
   const [path, qs] = h.split('?');
   const parts = path.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(qs || '');
-  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', fotos: 'photos', vorschlaege: 'reco', wunschliste: 'wish' };
+  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', fotos: 'photos', reife: 'reife', vorschlaege: 'reco', wunschliste: 'wish' };
   return { name: map[parts[0]] || 'home', arg: parts[1] || '', params };
 }
-const BACK_LABEL = { photos: 'Fotos nachtragen', home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr' };
+const BACK_LABEL = { photos: 'Fotos nachtragen', home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr', reife: 'Trinkreife' };
 function onRoute() {
   const r = parseHash();
   const prev = S.route;
@@ -70,6 +71,7 @@ function onRoute() {
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
   if (S.form) S.form.keep = false;
   if (r.name === 'year' && prev.name !== 'wine') S.wjMore = false;
+  if (r.name === 'reife' && prev.name !== 'wine') S.reifeF = r.params.get('st') || 'all';
   if (r.name === 'drunk' && !['drunk', 'wine'].includes(prev.name)) S.drunkQ = '';
   if (r.name === 'drunk' && prev.name !== 'drunk') { S.drunkLimit = 40; if (prev.name !== 'wine') S.tlPage = 0; }
   // Neue Liste: Standard-Sortierung (Bestand bzw. Datum); beim Zurückkommen vom Wein bleibt die Wahl
@@ -108,15 +110,16 @@ function render(top) {
   else if (r.name === 'neu') { html = V.newView(S, D); tab = 'neu'; }
   else if (r.name === 'stats') { html = V.statsView(S, D); tab = 'stats'; }
   else if (r.name === 'photos') html = V.photosView(S, D);
+  else if (r.name === 'reife') { html = V.reifeView(S, D, r.params); tab = 'stats'; }
   else if (r.name === 'year') { html = V.yearView(S, D, Number(r.params.get('y')) || V.reviewYear()); tab = 'stats'; }
   else if (r.name === 'reco') { html = V.recoView(S, D); tab = 'reco'; }
   else if (r.name === 'wish') { html = V.wishView(S, D); tab = 'wish'; }
   else html = V.homeView(S, D);
   // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
-  const SIDE = { photos: 'regal', home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reco: 'reco', wish: 'wish', neu: 'neu' };
+  const SIDE = { photos: 'regal', home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reife: 'reife', reco: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
   const split = html.startsWith('<div class="split wsplit">');
-  const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reco', 'wish'].includes(r.name);
+  const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reife', 'reco', 'wish'].includes(r.name);
   const oldL = $('.wsplit .split-l'), keepL = split && oldL ? oldL.scrollTop : 0;
   app.innerHTML = '<div class="page pg-' + r.name + (wide ? ' wide' : '') + '">' + html + '</div>' + V.nav(tab, side);
   // Liste links behält beim Durchklicken ihre Position, rechts startet das Detail oben
@@ -140,6 +143,13 @@ function listView(r, extra = {}) {
   const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
   return V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '', ...extra });
 }
+// Neuer Wein: Trinkfenster-Vorschlag live aus den Formularfeldern
+function refreshNewReife() {
+  const box = $('#nw-reife'), f = $('form[data-form=new]'); if (!box || !f || !S.form) return;
+  const w = { ...readWineFields(f), price: numOrNull(f.elements.price.value), firstBought: f.elements.purchased_on.value };
+  box.innerHTML = V.newReife(w, S.form.tier);
+}
+const refreshNewReifeSoon = debounce(refreshNewReife, 150);
 // Getrunken-Suche: nur die Liste neu zeichnen, damit das Eingabefeld den Fokus behält
 const refreshDrunk = debounce(() => { const box = $('#dlist'); if (box && S.D) box.innerHTML = V.drunkList(S, S.D); }, 120);
 function renderRegalParts() {
@@ -213,7 +223,7 @@ const actions = {
     const out = {
       format: 'wine-database', version: 1, exported_at: new Date().toISOString(),
       producers: d.producers.map((p) => ({ name: p.name, cap_color: p.cap_color })),
-      wines: d.wines.map((w) => ({ key: w.id, producer: (d.producers.find((p) => p.id === w.producer_id) || {}).name || null, name: w.name, grape: w.grape, wine_type: w.wine_type, style: w.style, region: w.region, vintage: w.vintage, description: w.description, my_note: w.my_note })),
+      wines: d.wines.map((w) => ({ key: w.id, producer: (d.producers.find((p) => p.id === w.producer_id) || {}).name || null, name: w.name, grape: w.grape, wine_type: w.wine_type, style: w.style, region: w.region, vintage: w.vintage, description: w.description, my_note: w.my_note, drink_from: w.drink_from, peak_from: w.peak_from, peak_to: w.peak_to, drink_to: w.drink_to, window_src: w.window_src })),
       purchases: d.purchases.map((p) => ({ wine: p.wine_id, purchased_on: p.purchased_on, merchant: p.merchant, qty: p.qty, price: p.price })),
       drinks: d.drinks.map((x) => ({ wine: x.wine_id, drunk_on: x.drunk_on, qty: x.qty, note: x.note, buy_again: x.buy_again, occasion: x.occasion, rating: x.rating, maturity: x.maturity })),
       wishlist: d.wishlist.map(({ id, user_id, created_at, ...x }) => x), labels: {}
@@ -231,6 +241,18 @@ const actions = {
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
   'clear-dq'() { S.drunkQ = ''; const i = $('#dq'); if (i) { i.value = ''; i.focus(); } const c = $('.dsearch .clr'); if (c) c.classList.add('hidden'); refreshDrunk(); },
   'search-all'() { S.searchAll = !S.searchAll; render(); },
+  'reife-f'(el) { S.reifeF = el.dataset.k; render(); },
+  'reife-edit'(el) { const w = S.D.byId.get(el.dataset.id); S.rw = { id: w.id, v: R.windowOf(w).win.slice() }; openSheet(V.reifeSheet(S, w)); },
+  // Werte bleiben geordnet: ab ≤ Höhepunkt ab ≤ Höhepunkt bis ≤ bis
+  'rw-step'(el) {
+    const i = Number(el.dataset.i), v = S.rw.v.slice(); v[i] += Number(el.dataset.d);
+    for (let k = i + 1; k < 4; k++) if (v[k] < v[k - 1]) v[k] = v[k - 1];
+    for (let k = i - 1; k >= 0; k--) if (v[k] > v[k + 1]) v[k] = v[k + 1];
+    if (v[0] < 1950 || v[3] > 2100) return;
+    S.rw.v = v; const y = $('#layer .sheet').scrollTop; openSheet(V.reifeSheet(S, S.D.byId.get(S.rw.id))); $('#layer .sheet').scrollTop = y;
+  },
+  'rw-reset'() { const w = S.D.byId.get(S.rw.id); S.rw.v = R.estimate(w); openSheet(V.reifeSheet(S, w)); },
+  'nw-tier'(el) { captureNewForm(); S.form.tier = S.form.tier === el.dataset.k ? null : el.dataset.k; refreshNewReife(); },
   'fach-mode'(el) { S.fachMode = el.dataset.k; render(); },
   'wj-cat'(el) { S.wjCat = el.dataset.k; S.wjMore = false; render(); },
   'wj-more'() { S.wjMore = !S.wjMore; render(); },
@@ -316,7 +338,8 @@ const forms = {
       let label_path = null;
       if (S.form.photoBlob) { label_path = uid() + '/' + id + '-' + Date.now() + '.jpg'; await api.uploadLabel(label_path, S.form.photoBlob); }
       const { producer, ...cols } = w;
-      await api.insert('wines', [{ id, producer_id, ...cols, label_path }]);
+      const win = R.estimate({ ...w, price: numOrNull(S.form.price), firstBought: S.form.date }, S.form.tier);
+      await api.insert('wines', [{ id, producer_id, ...cols, label_path, drink_from: win[0], peak_from: win[1], peak_to: win[2], drink_to: win[3], window_src: 'est' }]);
       const qty = intOrNull(S.form.qty);
       if (qty && qty > 0) await api.insert('purchases', [{ wine_id: id, qty, price: numOrNull(S.form.price), merchant: txt(S.form.merchant), purchased_on: S.form.date || null }]);
       if (S.form.wishId) await api.remove('wishlist', { id: 'eq.' + S.form.wishId });
@@ -346,7 +369,21 @@ const forms = {
     await guard(async () => {
       if (did) await api.patch('drinks', { id: 'eq.' + did }, row);
       else await api.insert('drinks', [{ wine_id: w.id, ...row }]);
-      closeSheet(); await reload(); toast(did ? 'Eintrag aktualisiert' : 'Zum Wohl! Eintrag gespeichert');
+      // Reife-Notiz passt das Fenster der übrigen Flaschen an (nicht bei eigener Angabe)
+      const left = w.stock - (old ? 0 : qty), cur = R.windowOf(w);
+      const nw = row.maturity && (!old || old.maturity !== row.maturity) && left > 0 && cur.src !== 'own' ? R.adjust(cur.win, row.maturity, Number(String(row.drunk_on || '').slice(0, 4)) || R.nowYear()) : null;
+      const changed = nw && nw.join() !== cur.win.join();
+      if (changed) await api.patch('wines', { id: 'eq.' + w.id }, { drink_from: nw[0], peak_from: nw[1], peak_to: nw[2], drink_to: nw[3], window_src: 'note' });
+      closeSheet(); await reload();
+      toast(changed ? 'Gespeichert · Trinkfenster jetzt ' + nw[0] + '–' + nw[3] : did ? 'Eintrag aktualisiert' : 'Zum Wohl! Eintrag gespeichert');
+    });
+  },
+  async reife(f) {
+    const w = S.D.byId.get(f.dataset.id), v = S.rw.v, est = R.estimate(w);
+    const src = v.join() === est.join() ? 'est' : 'own';
+    await guard(async () => {
+      await api.patch('wines', { id: 'eq.' + w.id }, { drink_from: v[0], peak_from: v[1], peak_to: v[2], drink_to: v[3], window_src: src });
+      closeSheet(); await reload(); toast(src === 'own' ? 'Trinkfenster gespeichert' : 'Zurück auf die Schätzung');
     });
   },
   async purchase(f) {
@@ -466,11 +503,28 @@ async function runImport(j) {
       }));
     }
     // Weine
-    const wines = j.wines.map((w) => ({
-      id: wineId.get(String(w.key)), producer_id: w.producer ? prodId.get(w.producer.trim().toLowerCase()) || null : null,
-      name: w.name, grape: w.grape || null, wine_type: w.wine_type || 'Weißwein', style: w.style || null, region: w.region || null,
-      vintage: w.vintage || null, description: w.description || null, my_note: w.my_note || null, label_path: labelPath.get(String(w.key)) || null
-    }));
+    // Trinkfenster: aus der Datei (eigene Angabe) oder Regel-Schätzung mit Preis und erstem Kaufdatum
+    const pinfo = new Map();
+    for (const p of j.purchases || []) {
+      const o = pinfo.get(String(p.wine)) || { q: 0, s: 0, d: null }; pinfo.set(String(p.wine), o);
+      if (p.price != null) { o.q += p.qty || 0; o.s += (p.qty || 0) * Number(p.price); }
+      if (p.purchased_on && (!o.d || p.purchased_on < o.d)) o.d = p.purchased_on;
+    }
+    const winOf = (w) => {
+      if (Array.isArray(w.drink)) return { win: w.drink, src: 'own' };
+      if (w.drink_from && w.drink_to) return { win: [w.drink_from, w.peak_from || w.drink_from, w.peak_to || w.drink_to, w.drink_to], src: w.window_src || 'est' };
+      const o = pinfo.get(String(w.key)) || {};
+      return { win: R.estimate({ ...w, price: o.q ? o.s / o.q : null, firstBought: o.d }), src: 'est' };
+    };
+    const wines = j.wines.map((w) => {
+      const { win, src } = winOf(w);
+      return {
+        id: wineId.get(String(w.key)), producer_id: w.producer ? prodId.get(w.producer.trim().toLowerCase()) || null : null,
+        name: w.name, grape: w.grape || null, wine_type: w.wine_type || 'Weißwein', style: w.style || null, region: w.region || null,
+        vintage: w.vintage || null, description: w.description || null, my_note: w.my_note || null, label_path: labelPath.get(String(w.key)) || null,
+        drink_from: win[0], peak_from: win[1], peak_to: win[2], drink_to: win[3], window_src: src
+      };
+    });
     await chunk('wines', wines); for (let i = 0; i < j.wines.length; i++) done++; prog('Weine angelegt');
     const wid = (k) => wineId.get(String(k));
     await chunk('purchases', (j.purchases || []).filter((p) => wid(p.wine)).map((p) => ({ wine_id: wid(p.wine), purchased_on: p.purchased_on || null, merchant: p.merchant || null, qty: p.qty, price: p.price == null ? null : p.price })));
@@ -510,6 +564,7 @@ document.addEventListener('input', (ev) => {
   if (t.dataset && t.dataset.input === 'producer') syncCapUi(t.value);
   // Weinart Champagner: Rebsorte einheitlich „Champagner“, falls noch leer
   if (t.name === 'wine_type' && t.value === 'Champagner' && t.form && t.form.elements.grape && !t.form.elements.grape.value.trim()) t.form.elements.grape.value = 'Champagner';
+  if (t.closest && t.closest('form[data-form=new]') && ['name', 'vintage', 'grape', 'wine_type', 'style', 'price', 'purchased_on'].includes(t.name)) refreshNewReifeSoon();
   if (t.closest && t.closest('form[data-form=new]') && ['producer', 'name', 'vintage'].includes(t.name)) {
     const box = $('#shop-links'); const f = t.form;
     if (box) box.innerHTML = V.shopLinks({ producer: f.elements.producer.value, name: f.elements.name.value, vintage: f.elements.vintage.value });

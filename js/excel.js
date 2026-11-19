@@ -1,3 +1,4 @@
+import { windowOf } from './reife.js';
 // Excel-Import und -Export: Blätter erkennen, Spalten zuordnen, Werte prüfen, in das Importformat umwandeln.
 import { TYPES } from './model.js';
 
@@ -16,7 +17,9 @@ export const ROLES = {
     ['producer', P, true], ['name', N, true], ['vintage', Y], ['wine_type', T, true], ['grape', G, true], ['region', R],
     ['style', ['Geschmack', 'geschmacksrichtung', 'stil', 'suesse', 'restsuesse', 'ausbau']],
     ['stock', ['Flaschen im Keller', 'bestand', 'anzahl', 'menge', 'flaschen', 'im keller', 'lagerbestand', 'anzahl flaschen', 'vorrat']],
-    ['price', PR], ['merchant', M], ['note', NO]] },
+    ['price', PR], ['merchant', M], ['note', NO],
+    ['drink_from', ['Trinkbar ab', 'trinken ab', 'trinkreif ab', 'genussreif ab', 'drink from']], ['peak', ['Höhepunkt', 'hoehepunkt', 'peak']],
+    ['drink_to', ['Trinkbar bis', 'trinken bis', 'lagerfaehig bis', 'haltbar bis', 'drink to', 'drink by']]] },
   purchases: { label: 'Käufe', match: /^(kaeufe|kauf|einkaeufe|einkauf|bestellungen|weinkaeufe)/, fields: [
     ['producer', P, true], ['name', N, true], ['vintage', Y],
     ['date', ['Kaufdatum', 'datum', 'gekauft am', 'bestelldatum', 'kauf datum']], ['merchant', M],
@@ -176,6 +179,14 @@ export function build(book, plan, existing) {
       if (Number.isNaN(stock) || stock < 0) { warn('wines', o._row, 'Flaschenzahl „' + str(o.stock) + '“ nicht erkannt – als 0 übernommen'); stock = 0; }
       let price = numOf(o.price);
       if (Number.isNaN(price) || price < 0) { warn('wines', o._row, 'Preis „' + str(o.price) + '“ nicht erkannt'); price = null; }
+      // Trinkfenster (optional): „Trinkbar ab“, „Höhepunkt“ (z. B. 2025–2028), „Trinkbar bis“
+      const ya = intOf(o.drink_from), yb = intOf(o.drink_to), pk = /(\d{4})(?:\s*[-–\/]\s*(\d{4}))?/.exec(str(o.peak));
+      let drink = null;
+      if (ya > 1900 && yb >= ya && yb < 2200) {
+        let pa = pk ? Number(pk[1]) : ya, pb = pk ? Number(pk[2] || pk[1]) : yb;
+        pa = Math.min(Math.max(pa, ya), yb); pb = Math.min(Math.max(pb, pa), yb);
+        drink = [ya, pa, pb, yb];
+      } else if (str(o.drink_from) || str(o.drink_to)) warn('wines', o._row, 'Trinkfenster „' + [str(o.drink_from), str(o.drink_to)].filter(Boolean).join(' – ') + '“ nicht erkannt – wird geschätzt');
       const key = keyOf(producer, name, vintage);
       if (have.has(key)) { skipKeys.add(key); stats.skippedExisting = skipKeys.size; continue; }
       if (byKey.has(key)) {
@@ -183,7 +194,7 @@ export function build(book, plan, existing) {
         warn('wines', o._row, '„' + name + '“ doppelt – Flaschen zusammengezählt'); continue;
       }
       const w = { key, producer: producer || null, name, grape: grape || null, wine_type: type, style: str(o.style).toLowerCase() || null, region: str(o.region) || null,
-        vintage, my_note: str(o.note) || null, _stock: stock, _price: price, _merchant: str(o.merchant) || null, _row: o._row };
+        vintage, my_note: str(o.note) || null, drink, _stock: stock, _price: price, _merchant: str(o.merchant) || null, _row: o._row };
       byKey.set(key, w); j.wines.push(w);
       const pn = keyOf(producer, name, ''); byPN.set(pn, byPN.has(pn) ? 'multi' : w);
       if (producer) stats.producers.add(producer);
@@ -270,8 +281,9 @@ export function exportSheets(D) {
   const sortD = (k) => (a, b) => String(a[k] || '').localeCompare(String(b[k] || ''));
   return [
     { name: 'Weine', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Weinart', w: 13 }, { h: 'Rebsorte', w: 18 }, { h: 'Region', w: 16 }, { h: 'Geschmack', w: 12 },
-      { h: 'Flaschen im Keller', w: 11 }, { h: 'Preis je Flasche', w: 12, eur: true }, { h: 'Händler', w: 18 }, { h: 'Notiz', w: 40 }],
-      rows: wines.map((w) => [...name(w), w.wine_type, w.grape || '', w.region || '', w.style || '', w.stock, w.avgPrice != null ? Math.round(w.avgPrice * 100) / 100 : '', w.merchants.join(', '), w.my_note || '']) },
+      { h: 'Flaschen im Keller', w: 11 }, { h: 'Preis je Flasche', w: 12, eur: true }, { h: 'Händler', w: 18 }, { h: 'Notiz', w: 40 },
+      { h: 'Trinkbar ab', w: 11 }, { h: 'Höhepunkt', w: 12 }, { h: 'Trinkbar bis', w: 11 }],
+      rows: wines.map((w) => { const x = windowOf(w).win; return [...name(w), w.wine_type, w.grape || '', w.region || '', w.style || '', w.stock, w.avgPrice != null ? Math.round(w.avgPrice * 100) / 100 : '', w.merchants.join(', '), w.my_note || '', x[0], x[1] === x[2] ? String(x[1]) : x[1] + '–' + x[2], x[3]]; }) },
     { name: 'Käufe', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Kaufdatum', w: 12, date: true }, { h: 'Händler', w: 18 }, { h: 'Anzahl', w: 9 }, { h: 'Preis je Flasche', w: 12, eur: true }],
       rows: D.purchases.filter((p) => byId.has(p.wine_id)).sort(sortD('purchased_on')).map((p) => [...name(byId.get(p.wine_id)), p.purchased_on || '', p.merchant || '', p.qty, p.price != null ? Number(p.price) : '']) },
     { name: 'Getrunken', cols: [{ h: 'Weingut', w: 24 }, { h: 'Wein', w: 34 }, { h: 'Jahrgang', w: 10 }, { h: 'Datum', w: 12, date: true }, { h: 'Anzahl', w: 9 }, { h: 'Notiz', w: 40 }, { h: 'Nochmal kaufen', w: 12 }, { h: 'Anlass', w: 18 }, { h: 'Bewertung', w: 10 }, { h: 'Reife', w: 14 }],
