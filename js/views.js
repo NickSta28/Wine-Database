@@ -789,7 +789,9 @@ function yearWide(S, D, y, years, x, prev, parts) {
     cells += '<i class="c' + (v ? (v === 1 ? ' v1' : v < 5 ? ' v2' : ' v3') : '') + (occ.has(k) ? ' oc' : '') + '" title="' + dt.getUTCDate() + '.' + (dt.getUTCMonth() + 1) + '.: ' + (v ? fl(v) : 'kein Wein') + '"></i>';
   }
   const topDay = [...daily.entries()].sort((a, b) => b[1] - a[1])[0];
-  const mh = MONL.map((m, i) => { const w0 = Math.floor((lead + (Date.UTC(y, i, 1) - start) / 864e5) / 7), w1 = Math.floor((lead + (Date.UTC(y, i + 1, 1) - start) / 864e5 - 1) / 7); return '<span style="width:' + ((w1 - w0 + 1) * 14 - 3) + 'px">' + m.slice(0, 3) + '</span>'; }).join('');
+  // Monatsbeschriftung: Breite = Wochen bis zum Beginn des nächsten Monats (keine Doppelzählung)
+  const wk = (i) => (i > 11 ? Math.ceil((lead + nd) / 7) : Math.floor((lead + (Date.UTC(y, i, 1) - start) / 864e5) / 7));
+  const mh = MONL.map((m, i) => '<span style="width:' + ((wk(i + 1) - wk(i)) * 14 - 3) + 'px">' + m.slice(0, 3) + '</span>').join('');
   const cal = '<div class="card chart"><div class="chart-head"><div class="eyebrow ce">Deine Wein-Tage</div><div class="wjsal">' + (daily.size ? plural(daily.size, 'Tag', 'Tage') + ' mit Wein · meiste Flaschen: <b>' + deDate(topDay[0]).slice(0, 6) + ' (' + topDay[1] + ')</b>' : 'Noch keine Tage mit Datum') + '</div></div>' +
     '<div class="wjcal"><div class="mh">' + mh + '</div><div class="row"><div class="wd"><span>Mo</span><span></span><span>Mi</span><span></span><span>Fr</span><span></span><span>So</span></div><div class="g" role="img" aria-label="Kalender ' + y + ': ' + daily.size + ' Tage mit Wein">' + cells + '</div></div></div>' +
     '<div class="callg">weniger <i></i><i class="v1"></i><i class="v2"></i><i class="v3"></i> mehr <span><i class="oc"></i>Tag mit Anlass</span></div></div>';
