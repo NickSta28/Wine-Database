@@ -70,6 +70,7 @@ function onRoute() {
   if (r.name === 'neu' && (!S.form || !S.form.keep)) S.form = blankForm();
   if (S.form) S.form.keep = false;
   if (r.name === 'year' && prev.name !== 'wine') S.wjMore = false;
+  if (r.name === 'drunk' && !['drunk', 'wine'].includes(prev.name)) S.drunkQ = '';
   if (r.name === 'drunk' && prev.name !== 'drunk') { S.drunkLimit = 40; if (prev.name !== 'wine') S.tlPage = 0; }
   // Neue Liste: Standard-Sortierung (Bestand bzw. Datum); beim Zurückkommen vom Wein bleibt die Wahl
   if (['fach', 'list', 'search'].includes(r.name) && prev.name !== 'wine') S.fachSort = 'stock';
@@ -139,6 +140,8 @@ function listView(r, extra = {}) {
   const suffix = scope === 'drunk' ? ' · getrunken' : scope === 'bought' ? ' · gekauft' : ' im Keller';
   return V.fachView(S, D, v, D.wines.filter((w) => inScope(w) && V.listMatch(k, v)(w)), { eyebrow: f[0] + (['dyear', 'byear', 'again'].includes(k) ? '' : suffix), back: ['#/statistik', 'Statistik'], mini: false, scope, year: ['dyear', 'byear'].includes(k) ? v : '', ...extra });
 }
+// Getrunken-Suche: nur die Liste neu zeichnen, damit das Eingabefeld den Fokus behält
+const refreshDrunk = debounce(() => { const box = $('#dlist'); if (box && S.D) box.innerHTML = V.drunkList(S, S.D); }, 120);
 function renderRegalParts() {
   const D = S.D;
   const chips = $('#chips'); if (chips) chips.innerHTML = V.chipsHtml(topSearches(D), S.recent, S.q);
@@ -226,6 +229,7 @@ const actions = {
   'tl-page'(el) { S.tlPage = Math.max(0, (S.tlPage || 0) + Number(el.dataset.d)); render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
+  'clear-dq'() { S.drunkQ = ''; const i = $('#dq'); if (i) { i.value = ''; i.focus(); } const c = $('.dsearch .clr'); if (c) c.classList.add('hidden'); refreshDrunk(); },
   'search-all'() { S.searchAll = !S.searchAll; render(); },
   'fach-mode'(el) { S.fachMode = el.dataset.k; render(); },
   'wj-cat'(el) { S.wjCat = el.dataset.k; S.wjMore = false; render(); },
@@ -502,6 +506,7 @@ const refreshShelf = debounce(() => renderRegalParts(), 90);
 document.addEventListener('input', (ev) => {
   const t = ev.target;
   if (t.id === 'q') { S.q = t.value; S.showDrop = !!t.value.trim(); refreshShelf(); return; }
+  if (t.id === 'dq') { S.drunkQ = t.value; S.drunkLimit = 40; const c = t.parentElement.querySelector('.clr'); if (c) c.classList.toggle('hidden', !t.value); refreshDrunk(); return; }
   if (t.dataset && t.dataset.input === 'producer') syncCapUi(t.value);
   // Weinart Champagner: Rebsorte einheitlich „Champagner“, falls noch leer
   if (t.name === 'wine_type' && t.value === 'Champagner' && t.form && t.form.elements.grape && !t.form.elements.grape.value.trim()) t.form.elements.grape.value = 'Champagner';
@@ -511,6 +516,7 @@ document.addEventListener('input', (ev) => {
   }
 });
 document.addEventListener('keydown', (ev) => {
+  if (ev.target.id === 'dq' && ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); return; }
   if (ev.target.id === 'q' && ev.key === 'Enter') { ev.preventDefault(); addRecent(S.q); S.showDrop = false; ev.target.blur(); renderRegalParts(); }
   if (ev.key === 'Escape' && sheetOpen()) closeSheet();
 });

@@ -3,6 +3,9 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.2.4 – 19.11.2026
+- Getrunken: Suchfeld über der Liste – sucht in Wein, Weingut, Rebsorte, Region, Jahrgang, Händler sowie Trinknotiz, Anlass, Datum, Bewertung und Reife; mehrere Begriffe werden kombiniert (z. B. „2022 Riesling“), Filter-Chips wirken zusätzlich; Suche bleibt beim Zurückkommen vom Wein erhalten
+
 ## 1.2.3 – 19.11.2026
 - Neue Seite „Fotos nachtragen“: alle Weine ohne Etikettenfoto – auch ausgetrunkene – mit Foto-Knopf je Zeile (Einstieg: Einstellungen und Etiketten-Wand)
 - Getrunken: Kamera-Knopf direkt auf Karten von Weinen ohne Etikett

@@ -602,3 +602,4 @@ nav.side{display:none}
 .prow2 .s{font:400 12px var(--sans);color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .btn.cam{flex:none;min-height:40px;padding:0 12px;font-size:14px}
 .btn.cam svg{width:18px;height:18px}
+.dsearch{margin-top:14px}

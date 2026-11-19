@@ -316,9 +316,23 @@ export function shopLinks(w) {
 }
 
 /* ---------- Getrunken ---------- */
+// Suche in getrunkenen Weinen: Wein-Angaben plus Trinknotiz, Anlass, Datum, Bewertung
+export function drinkMatcher(q) {
+  const tokens = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return null;
+  return ({ w, d }) => {
+    const hay = [w.name, w.producer, w.grape, w.wine_type, w.style, w.region, w.vintage, w.fach, w.merchants.join(' '), d.note, d.occasion, d.drunk_on, d.drunk_on ? deDate(d.drunk_on) : 'ohne datum',
+      d.rating ? d.rating + ' sterne' : '', MAT_TXT[d.maturity] || '', d.buy_again ? 'nochmal ' + d.buy_again : ''].join(' ').toLowerCase();
+    return tokens.every((t) => hay.includes(t));
+  };
+}
 export function drunkView(S, D) {
   const t = totals(D);
+  return head('Meine Erinnerungen', 'Getrunken') + homeSeg('drunk') + drunkHead(S, D, t) + '<div id="dlist">' + drunkList(S, D) + '</div>';
+}
+export function drunkList(S, D) {
   let items = D.wines.flatMap((w) => w.drinks.map((d) => ({ w, d })));
+  const m = drinkMatcher(S.drunkQ); if (m) items = items.filter(m);
   if (S.drunkFilter === 'again') items = items.filter((x) => x.d.buy_again === 'ja');
   if (S.drunkFilter === 'occasion') items = items.filter((x) => x.d.occasion);
   const occ = String(S.drunkFilter).startsWith('occ:') ? S.drunkFilter.slice(4) : '';
@@ -332,19 +346,24 @@ export function drunkView(S, D) {
   }
   const shown = groups.reduce((acc, g) => { if (acc.n < S.drunkLimit) { const take = g.items.slice(0, S.drunkLimit - acc.n); acc.n += take.length; acc.g.push({ y: g.y, items: take }); } return acc; }, { n: 0, g: [] });
   const fchip = (k, l) => '<button class="chip" data-act="drunk-filter" data-k="' + k + '" aria-pressed="' + (S.drunkFilter === k) + '">' + l + '</button>';
-  return head('Meine Erinnerungen', 'Getrunken') + homeSeg('drunk') +
-    '<div class="kpis"><div class="kpi dark"><div class="l">Flaschen</div><div class="v">' + num(t.drunk) + '</div></div><div class="kpi"><div class="l">Genossen für</div><div class="v">' + eur(t.drunkValue, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + num(t.again) + '×</div></div></div>' +
-    (S.wide ? drunkWide(S, D) : '') +
-    '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + (occ ? fchip(S.drunkFilter, 'Anlass: ' + esc(occ)) : '') + '</div>' +
+  const fl0 = items.reduce((n, x) => n + x.d.qty, 0);
+  return '<div class="chips" style="margin-top:14px">' + fchip('all', 'Alle') + fchip('again', 'Nochmal kaufen') + fchip('occasion', 'Mit Anlass') + (occ ? fchip(S.drunkFilter, 'Anlass: ' + esc(occ)) : '') + '</div>' +
+    (m && items.length ? '<p class="note" style="margin-top:10px">' + plural(items.length, 'Eintrag', 'Einträge') + ' · ' + fl(fl0) + ' für „' + esc(S.drunkQ.trim()) + '“</p>' : '') +
     (items.length ? shown.g.map((g) => '<div class="year"><b>' + esc(g.y) + '</b><i></i></div><div class="mems">' + g.items.map(({ w, d }) =>
       '<div class="mem"><a class="go" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
       '<span class="w">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape].filter(Boolean).join(' · ')) + '</span>' + starsShow(d.rating) +
       (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">Anlass: ' + esc(d.occasion) + '</span>' : '') + '</span></a>' +
       '<span class="eds"><button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button>' +
       (w.label_path ? '' : '<label class="ed" for="lfm-' + d.id + '" aria-label="Etikett fotografieren">' + icon('camera') + '</label><input id="lfm-' + d.id + '" class="sr" type="file" accept="image/*" data-change="label" data-id="' + w.id + '">') + '</span></div>').join('') + '</div>').join('') +
-      (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '')
-      : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>');
+      (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '') : (m ? '<div class="empty"><b>Nichts gefunden</b>Kein getrunkener Wein passt zu „' + esc(S.drunkQ.trim()) + '“.</div>' : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>'));
 }
+function drunkHead(S, D, t) {
+  return '<div class="kpis"><div class="kpi dark"><div class="l">Flaschen</div><div class="v">' + num(t.drunk) + '</div></div><div class="kpi"><div class="l">Genossen für</div><div class="v">' + eur(t.drunkValue, 0) + '</div></div><div class="kpi"><div class="l">Nochmal kaufen</div><div class="v">' + num(t.again) + '×</div></div></div>' +
+    (S.wide ? drunkWide(S, D) : '') +
+    '<div class="search dsearch"><div class="box">' + icon('search') + '<label for="dq" class="sr">In getrunkenen Weinen suchen</label><input id="dq" type="search" enterkeyhint="search" autocomplete="off" placeholder="Wein, Weingut, Notiz, Anlass, Jahr …" value="' + esc(S.drunkQ || '') + '">' +
+    '<button class="clr' + (S.drunkQ ? '' : ' hidden') + '" data-act="clear-dq" aria-label="Suche leeren">' + icon('x') + '</button></div></div>';
+}
+
 
 // iPad quer: Zeitstrahl der letzten Erinnerungen (seitenweise) sowie Jahre und Anlässe
 const TL_PER = 4;
