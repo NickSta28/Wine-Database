@@ -594,3 +594,11 @@ nav.side{display:none}
   .fbar{flex-direction:column;align-items:stretch;gap:10px}
   .fbar .seg.sm{align-self:flex-start}
 }
+.mem .eds{flex:none;display:flex;flex-direction:column;align-self:flex-start;margin:-4px -4px 0 0}
+.mem .eds .ed{margin:0}
+.prow2{display:flex;align-items:center;gap:10px}
+.prow2 .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.prow2 .t{font:600 15px/1.25 var(--head)}
+.prow2 .s{font:400 12px var(--sans);color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.btn.cam{flex:none;min-height:40px;padding:0 12px;font-size:14px}
+.btn.cam svg{width:18px;height:18px}

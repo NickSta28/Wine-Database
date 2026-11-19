@@ -3,6 +3,11 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.2.3 – 19.11.2026
+- Neue Seite „Fotos nachtragen“: alle Weine ohne Etikettenfoto – auch ausgetrunkene – mit Foto-Knopf je Zeile (Einstieg: Einstellungen und Etiketten-Wand)
+- Getrunken: Kamera-Knopf direkt auf Karten von Weinen ohne Etikett
+- Suche: Knopf „Auch ausgetrunkene Weine zeigen“
+
 ## 1.2.2 – 19.11.2026 · Grafiken für das iPad
 - „Dein Weinjahr“ auf dem iPad quer als Übersichtsseite: Jahresleiste mit Säulen je Jahr, Kopfzeile mit vier Kennzahlen, Monate mit Linie „Keller-Veränderung seit Januar“, Kalender „Deine Wein-Tage“, Etiketten-Collage der getrunkenen Weine (Lieblinge groß)
 - Etiketten-Wand: im Fach Umschalter „Liste | Etiketten“ – alle Weine als Etikettenfotos, ohne Foto als Platzhalter; auf dem iPad ganzseitig mit Fach-Auswahl

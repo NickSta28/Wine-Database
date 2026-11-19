@@ -220,14 +220,14 @@ export function fachView(S, D, name, list, opts = {}) {
     list.length ? '<p class="note" style="margin-top:12px">Kapselfarbe je Weingut, festgelegt beim Erfassen. ' + cap('#262C29', 's12') + ' = noch offen</p>' +
       '<div class="card list" style="margin-top:10px;overflow:hidden">' + sorted.map((w) => { const r = wineRow(w, o.scope, dateOf(w)); return w.id === o.sel ? r.replace('<a class="row"', '<a class="row sel" aria-current="true"') : r; }).join('') + '</div>'
       : o.scope !== 'stock' || !o.mini ? '<div class="empty"><b>Keine Weine gefunden</b></div>'
-      : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>');
+      : '<div class="empty"><b>Dieses Fach ist leer</b>Sobald du einen passenden Wein anlegst, landet er hier.</div><div class="btns"><a class="btn" href="#/neu">Wein anlegen</a></div>') + (o.footer || '');
 }
 
 // Etiketten-Wand: Weine eines Fachs als Etikettenfotos, ohne Foto mit Platzhalter
 function labelWall(S, list) {
   const ini = (p) => String(p || '?').replace(/^(Weingut|Weinbau|Dr\.|Schloss|Villa|Domaine|Château|Chateau|Champagne)\s+/i, '').split(/[\s-]+/).map((x) => x.charAt(0)).join('').slice(0, 2).toUpperCase();
   const n = list.filter((w) => w.label_path && S.urls[w.label_path]).length;
-  return '<p class="note" style="margin-top:12px">' + plural(list.length, 'Wein', 'Weine') + ' · ' + n + ' mit Foto' + (n < list.length ? ' – Foto nachholen: Wein antippen und „Etikett fotografieren“' : '') + '</p><div class="wall">' + list.map((w) => {
+  return '<p class="note" style="margin-top:12px">' + plural(list.length, 'Wein', 'Weine') + ' · ' + n + ' mit Foto' + (n < list.length ? ' · <a href="#/fotos" style="color:var(--wine);font-weight:600">Fehlende Fotos nachtragen</a>' : '') + '</p><div class="wall">' + list.map((w) => {
     const u = w.label_path && S.urls[w.label_path];
     return '<a href="#/wein/' + w.id + '" aria-label="' + esc(w.name + (w.vintage ? ' ' + w.vintage : '') + ', ' + (w.producer || '') + ', ' + fl(w.stock) + (u ? '' : ', noch ohne Etikettenfoto')) + '"><span class="pic">' +
       (u ? '<img src="' + esc(u) + '" alt="" loading="lazy">' : '<span class="ph"><b>' + esc(ini(w.producer)) + '</b>' + icon('camera') + '<span>Foto fehlt</span></span>') +
@@ -241,6 +241,18 @@ export function fachSplit(S, D, name, list) {
   return '<div class="split"><div class="split-l">' + head('Mein Keller', 'Weinregal', '<div class="meta">' + fl(t.stock) + '<br>' + plural(F.length, 'Fach', 'Fächer') + '</div>') +
     shelfHtml(D, S.q, name) + (S.q.trim() ? '<p class="hint">Gold = Treffer für „' + esc(S.q.trim()) + '“ · <a href="#/regal" style="color:var(--wine)">Suche bearbeiten</a></p>' : '') +
     '</div><div class="split-r">' + fachView(S, D, name, list, { split: true, wall: true }) + '</div></div>';
+}
+
+// Fehlende Etiketten nachtragen: alle Weine ohne Foto, auch ausgetrunkene, mit Kamera-Knopf je Zeile
+export function photosView(S, D) {
+  const ws = D.wines.filter((w) => !w.label_path).sort((a, b) => (b.stock > 0) - (a.stock > 0) || String(b.lastDrunk || '').localeCompare(String(a.lastDrunk || '')) || a.name.localeCompare(b.name));
+  const row = (w) => '<div class="row prow2"><a class="tx" href="#/wein/' + w.id + '"><span class="t">' + esc(w.name) + (w.vintage ? ' ' + w.vintage : '') + '</span><span class="s">' + esc([w.producer, w.stock > 0 ? fl(w.stock) + ' im Keller' : 'ausgetrunken' + (w.lastDrunk ? ' · zuletzt ' + deDate(w.lastDrunk) : '')].filter(Boolean).join(' · ')) + '</span></a>' +
+    '<label class="btn ghost cam" for="lfp-' + w.id + '">' + icon('camera') + 'Foto</label><input id="lfp-' + w.id + '" class="sr" type="file" accept="image/*" data-change="label" data-id="' + w.id + '"></div>';
+  const inS = ws.filter((w) => w.stock > 0), out = ws.filter((w) => w.stock <= 0);
+  return backBtn('#/regal', 'Weinregal') + '<div class="top"><div><div class="eyebrow">Etiketten</div><h1 class="title">Fotos nachtragen</h1><div class="sub">' + (ws.length ? plural(ws.length, 'Wein', 'Weine') + ' ohne Etikettenfoto' : 'Alle Weine haben ein Foto') + '</div></div></div>' +
+    (ws.length ? '<p class="note">„Foto“ öffnet Kamera oder Fotomediathek. Nach dem Speichern verschwindet der Wein aus der Liste.</p>' : '<div class="empty"><b>Alles erledigt</b>Jeder Wein hat ein Etikettenfoto.</div>') +
+    (inS.length ? '<div class="sec">Im Keller (' + inS.length + ')</div><div class="card list">' + inS.map(row).join('') + '</div>' : '') +
+    (out.length ? '<div class="sec">Ausgetrunken (' + out.length + ')</div><div class="card list">' + out.map(row).join('') + '</div>' : '');
 }
 
 /* ---------- Detail ---------- */
@@ -328,7 +340,8 @@ export function drunkView(S, D) {
       '<div class="mem"><a class="go" href="#/wein/' + w.id + '">' + labelImg(w, S.urls, 'th') + '<span class="tx"><span class="d">' + esc(d.drunk_on ? deDayMonth(d.drunk_on) : 'Datum unbekannt') + (d.qty > 1 ? ' · ' + fl(d.qty) : '') + '</span>' +
       '<span class="w">' + esc(w.name) + '</span><span class="s">' + esc([w.producer, w.grape].filter(Boolean).join(' · ')) + '</span>' + starsShow(d.rating) +
       (d.note ? '<span class="n">„' + esc(d.note) + '“</span>' : '') + (d.occasion ? '<span class="an">Anlass: ' + esc(d.occasion) + '</span>' : '') + '</span></a>' +
-      '<button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button></div>').join('') + '</div>').join('') +
+      '<span class="eds"><button class="ed" data-act="edit-drink" data-id="' + d.id + '" aria-label="Notiz und Anlass bearbeiten">' + icon('edit') + '</button>' +
+      (w.label_path ? '' : '<label class="ed" for="lfm-' + d.id + '" aria-label="Etikett fotografieren">' + icon('camera') + '</label><input id="lfm-' + d.id + '" class="sr" type="file" accept="image/*" data-change="label" data-id="' + w.id + '">') + '</span></div>').join('') + '</div>').join('') +
       (items.length > S.drunkLimit ? '<button class="more card" style="margin-top:4px" data-act="drunk-more">Weitere ' + (items.length - S.drunkLimit) + ' Einträge anzeigen</button>' : '')
       : '<div class="empty"><b>Noch nichts getrunken</b>Markiere in der Detailansicht eines Weins „Flasche getrunken“.</div>');
 }
@@ -832,6 +845,7 @@ export function settingsSheet(S, D) {
     '<label class="btn ghost" for="imp">Excel-Liste oder Sicherung importieren</label><input id="imp" class="sr" type="file" accept="' + IMPORT_ACCEPT + '" data-change="import">' +
     '<a class="btn ghost" href="' + TEMPLATE_URL + '" download>Excel-Vorlage herunterladen</a></div>' +
     '<p class="note">Excel (.xlsx, .xlsm) oder CSV: Vor dem Import siehst du eine Vorschau. Weine, die schon in deinem Keller sind, werden übersprungen.</p>' +
+    (D.wines.some((w) => !w.label_path) ? '<div class="sec">Etiketten</div><div class="fgrid"><a class="btn ghost" href="#/fotos">' + icon('camera') + 'Fehlende Etiketten nachtragen (' + D.wines.filter((w) => !w.label_path).length + ')</a></div>' : '') +
     '<div class="sec">Exportieren</div><div class="fgrid">' +
     '<button class="btn ghost" data-act="export-xlsx">Als Excel exportieren</button>' +
     '<button class="btn ghost" data-act="export">Sicherung herunterladen (ohne Etiketten)</button></div>' +

@@ -52,10 +52,10 @@ function parseHash() {
   const [path, qs] = h.split('?');
   const parts = path.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(qs || '');
-  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', vorschlaege: 'reco', wunschliste: 'wish' };
+  const map = { '': 'home', regal: 'regal', fach: 'fach', suche: 'search', liste: 'list', wein: 'wine', getrunken: 'drunk', neu: 'neu', statistik: 'stats', weinjahr: 'year', fotos: 'photos', vorschlaege: 'reco', wunschliste: 'wish' };
   return { name: map[parts[0]] || 'home', arg: parts[1] || '', params };
 }
-const BACK_LABEL = { home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr' };
+const BACK_LABEL = { photos: 'Fotos nachtragen', home: 'Übersicht', regal: 'Weinregal', search: 'Suche', drunk: 'Getrunken', reco: 'Vorschläge', stats: 'Statistik', year: 'Weinjahr' };
 function onRoute() {
   const r = parseHash();
   const prev = S.route;
@@ -106,12 +106,13 @@ function render(top) {
   else if (r.name === 'drunk') html = V.drunkView(S, D);
   else if (r.name === 'neu') { html = V.newView(S, D); tab = 'neu'; }
   else if (r.name === 'stats') { html = V.statsView(S, D); tab = 'stats'; }
+  else if (r.name === 'photos') html = V.photosView(S, D);
   else if (r.name === 'year') { html = V.yearView(S, D, Number(r.params.get('y')) || V.reviewYear()); tab = 'stats'; }
   else if (r.name === 'reco') { html = V.recoView(S, D); tab = 'reco'; }
   else if (r.name === 'wish') { html = V.wishView(S, D); tab = 'wish'; }
   else html = V.homeView(S, D);
   // Seitenleiste (iPad): aktiver Bereich; beim Wein der Bereich, aus dem man kam
-  const SIDE = { home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reco: 'reco', wish: 'wish', neu: 'neu' };
+  const SIDE = { photos: 'regal', home: 'home', regal: 'regal', fach: 'regal', search: 'regal', drunk: 'drunk', stats: 'stats', list: 'stats', year: 'year', reco: 'reco', wish: 'wish', neu: 'neu' };
   const side = SIDE[r.name === 'wine' ? S.wineFrom : r.name] || '';
   const split = html.startsWith('<div class="split wsplit">');
   const wide = split || (r.name === 'fach' && S.fachMode === 'labels') || ['home', 'regal', 'fach', 'search', 'list', 'drunk', 'stats', 'year', 'reco', 'wish'].includes(r.name);
@@ -126,7 +127,12 @@ function render(top) {
 function listView(r, extra = {}) {
   const D = S.D;
   if (r.name === 'fach') return V.fachView(S, D, r.arg, faecher(D).find((f) => f.name === r.arg)?.wines || [], { wall: !extra.sel, ...extra });
-  if (r.name === 'search') { const m = matcher(S.q); return V.fachView(S, D, '„' + S.q.trim() + '“', m ? D.wines.filter((w) => w.stock > 0 && m(w)) : [], { eyebrow: 'Suche', mini: false, ...extra }); }
+  if (r.name === 'search') {
+    // Suche: Bestand; ausgetrunkene Weine auf Wunsch dazu
+    const m = matcher(S.q), all = m ? D.wines.filter((w) => m(w)) : [], gone = all.filter((w) => w.stock <= 0).length;
+    const footer = gone ? '<div class="btns"><button class="btn ghost" data-act="search-all">' + (S.searchAll ? 'Nur Weine im Keller zeigen' : 'Auch ' + gone + ' ausgetrunkene ' + (gone === 1 ? 'Wein' : 'Weine') + ' zeigen') + '</button></div>' : '';
+    return V.fachView(S, D, '„' + S.q.trim() + '“', S.searchAll ? all : all.filter((w) => w.stock > 0), { eyebrow: 'Suche', mini: false, footer, ...extra });
+  }
   const k = V.LIST_FIELDS[r.params.get('k')] ? r.params.get('k') : 'grape', f = V.LIST_FIELDS[k], v = r.params.get('v') || '';
   const scope = ['drunk', 'bought'].includes(r.params.get('s')) ? r.params.get('s') : 'stock';
   const inScope = scope === 'drunk' ? (w) => w.drunk > 0 : scope === 'bought' ? (w) => w.bought > 0 : (w) => w.stock > 0;
@@ -220,6 +226,7 @@ const actions = {
   'tl-page'(el) { S.tlPage = Math.max(0, (S.tlPage || 0) + Number(el.dataset.d)); render(); },
   'drunk-more'() { S.drunkLimit += 60; render(); },
   'stat-tab'(el) { S.statTab = el.dataset.k; render(); },
+  'search-all'() { S.searchAll = !S.searchAll; render(); },
   'fach-mode'(el) { S.fachMode = el.dataset.k; render(); },
   'wj-cat'(el) { S.wjCat = el.dataset.k; S.wjMore = false; render(); },
   'wj-more'() { S.wjMore = !S.wjMore; render(); },
