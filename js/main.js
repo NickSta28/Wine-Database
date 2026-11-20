@@ -594,6 +594,12 @@ document.addEventListener('keydown', (ev) => {
   if (ev.target.id === 'q' && ev.key === 'Enter') { ev.preventDefault(); addRecent(S.q); S.showDrop = false; ev.target.blur(); renderRegalParts(); }
   if (ev.key === 'Escape' && sheetOpen()) closeSheet();
 });
+// Tippen irgendwo ins Suchfeld (Lupe, Rand) setzt den Cursor ins Eingabefeld – direkt im Tipp, damit iOS die Tastatur öffnet
+document.addEventListener('click', (ev) => {
+  const box = ev.target.closest && ev.target.closest('.search .box');
+  if (!box || ev.target.closest('input, button, a')) return;
+  const i = box.querySelector('input'); if (i) i.focus();
+});
 document.addEventListener('focusin', (ev) => { if (ev.target.id === 'q' && S.q.trim()) { S.showDrop = true; renderRegalParts(); } });
 window.addEventListener('hashchange', onRoute);
 // iPad drehen: ab 800 pt Breite und 600 pt Höhe – iPhone quer bleibt beim Telefon-Layout breites Layout (Seitenleiste, geteilte Ansichten) – Ansicht neu aufbauen

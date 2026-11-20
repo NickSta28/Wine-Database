@@ -3,6 +3,11 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.4.2 – 20.11.2026
+- Ältere iPads (iOS 15): Tab-Leiste bleibt beim Scrollen unten (kein `overflow: hidden` mehr auf der ganzen Seite)
+- Suchfelder: Tippen auf Lupe oder Rand setzt den Cursor ins Feld
+- Markierung des aktiven Menüpunkts auch auf älteren iOS-Versionen sichtbar
+
 ## 1.4.1 – 20.11.2026
 - Einstellungen: Anzahl der gespeicherten Etikettenfotos mit Gesamtgröße in MB und Durchschnitt je Foto
 - Einstellungen: Copyright-Vermerk unter der Versionsnummer
