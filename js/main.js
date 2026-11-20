@@ -217,7 +217,15 @@ function syncCapUi(name) {
 
 /* ---------- Aktionen ---------- */
 const actions = {
-  async settings() { openSheet(V.settingsSheet(S, S.D)); },
+  async settings() {
+    openSheet(V.settingsSheet(S, S.D));
+    // Etiketten zählen (Anzahl und Größe im Speicher), danach nur die Zeile aktualisieren
+    try {
+      const files = await api.listLabels(uid());
+      S.lblStats = { n: files.length, bytes: files.reduce((a, f) => a + f.size, 0) };
+    } catch (e) { console.warn('Etiketten', e); S.lblStats = { err: true }; }
+    const el = $('#lbl-stats'); if (el) el.innerHTML = V.labelStats(S, S.D);
+  },
   close() { closeSheet(); },
   'xl-map'() { S.xl.mapping = !S.xl.mapping; S.xl.keepScroll = false; openSheet(V.xlSheet(S)); S.xl.keepScroll = true; },
   async 'xl-run'() { const j = S.xl.res.j; S.xl = null; await runImport(j); },

@@ -924,14 +924,24 @@ export function settingsSheet(S, D) {
     '<label class="btn ghost" for="imp">Excel-Liste oder Sicherung importieren</label><input id="imp" class="sr" type="file" accept="' + IMPORT_ACCEPT + '" data-change="import">' +
     '<a class="btn ghost" href="' + TEMPLATE_URL + '" download>Excel-Vorlage herunterladen</a></div>' +
     '<p class="note">Excel (.xlsx, .xlsm) oder CSV: Vor dem Import siehst du eine Vorschau. Weine, die schon in deinem Keller sind, werden übersprungen.</p>' +
-    (D.wines.some((w) => !w.label_path) ? '<div class="sec">Etiketten</div><div class="fgrid"><a class="btn ghost" href="#/fotos">' + icon('camera') + 'Fehlende Etiketten nachtragen (' + D.wines.filter((w) => !w.label_path).length + ')</a></div>' : '') +
+    '<div class="sec">Etiketten</div><div class="card lstat" id="lbl-stats">' + labelStats(S, D) + '</div>' +
+    (D.wines.some((w) => !w.label_path) ? '<div class="fgrid" style="margin-top:10px"><a class="btn ghost" href="#/fotos">' + icon('camera') + 'Fehlende Etiketten nachtragen (' + D.wines.filter((w) => !w.label_path).length + ')</a></div>' : '') +
     '<div class="sec">Exportieren</div><div class="fgrid">' +
     '<button class="btn ghost" data-act="export-xlsx">Als Excel exportieren</button>' +
     '<button class="btn ghost" data-act="export">Sicherung herunterladen (ohne Etiketten)</button></div>' +
     '<p class="note">Die Excel-Datei hat den Aufbau der Vorlage und lässt sich wieder importieren.</p>' +
     '<div class="sec">Konto</div><div class="fgrid"><button class="btn ghost" data-act="pw">Passwort ändern</button><button class="btn ghost" data-act="logout">Abmelden</button></div>' +
     '<div class="btns" style="margin-top:22px"><button class="btn ghost danger" data-act="wipe">Alle meine Daten löschen</button></div>' +
-    '<p class="note" style="text-align:center">Version ' + VERSION + '</p>';
+    '<p class="note" style="text-align:center">Version ' + VERSION + '<br>© ' + new Date().getFullYear() + ' Nick</p>';
+}
+// Etiketten im Speicher: Anzahl und Gesamtgröße (wird beim Öffnen der Einstellungen gezählt)
+export function labelStats(S, D) {
+  const x = S.lblStats, withLbl = D.wines.filter((w) => w.label_path).length;
+  if (!x) return '<span class="l">Etikettenfotos</span><b>wird gezählt …</b>';
+  if (x.err) return '<span class="l">Etikettenfotos</span><b>' + num(withLbl) + '</b><span class="note" style="margin:2px 0 0">Größe gerade nicht abrufbar</span>';
+  const mb = x.bytes / 1048576;
+  return '<span class="l">Etikettenfotos gespeichert</span><b>' + num(x.n) + ' <small>· ' + mb.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' MB</small></b>' +
+    '<span class="note" style="margin:2px 0 0">' + (x.n ? 'Ø ' + Math.round(x.bytes / x.n / 1024) + ' KB je Foto · ' : '') + num(withLbl) + ' von ' + plural(D.wines.length, 'Wein', 'Weinen') + ' mit Etikett</span>';
 }
 export function pwSheet(err) {
   return '<h2>Passwort ändern</h2><form data-form="pw" style="display:flex;flex-direction:column;gap:10px">' +

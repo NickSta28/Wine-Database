@@ -119,6 +119,17 @@ export async function deleteLabels(paths) {
   if (!paths.length) return;
   await req('DELETE', '/storage/v1/object/labels', { body: { prefixes: paths } });
 }
+// Alle Etiketten im eigenen Ordner mit Größe (für die Einstellungen)
+export async function listLabels(folder) {
+  const out = [];
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const res = await req('POST', '/storage/v1/object/list/labels', { body: { prefix: folder + '/', limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } } });
+    const files = (res || []).filter((x) => x.id);
+    out.push(...files.map((x) => ({ name: x.name, size: (x.metadata && x.metadata.size) || 0 })));
+    if ((res || []).length < 1000) break;
+  }
+  return out;
+}
 // Zeitlich begrenzte Links für die privaten Etiketten (ein Aufruf für alle)
 export async function signLabels(paths, expiresIn = 60 * 60 * 24) {
   const out = {};

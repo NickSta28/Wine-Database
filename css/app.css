@@ -761,3 +761,6 @@ nav.side{display:none}
 .kgh{display:flex;justify-content:space-between;gap:8px;margin-top:14px;font:600 13px var(--head)}
 .kgh span{font:400 12px var(--sans);color:var(--muted)}
 .krows.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
+.lstat{padding:14px 16px}
+.lstat .l{display:block;font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lstat b{display:block;font:600 22px var(--head);margin-top:2px}.lstat b small{font:500 15px var(--sans);color:var(--muted)}

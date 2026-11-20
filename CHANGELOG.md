@@ -3,6 +3,10 @@
 Neueste Version oben. Die Versionsnummer steht in der App unter Einstellungen.
 Schema: **Hauptversion.Funktionsstufe.Korrektur** – neue Funktionsblöcke erhöhen die mittlere Zahl (1.1, 1.2 …), kleinere Verbesserungen und Korrekturen die letzte.
 
+## 1.4.1 – 20.11.2026
+- Einstellungen: Anzahl der gespeicherten Etikettenfotos mit Gesamtgröße in MB und Durchschnitt je Foto
+- Einstellungen: Copyright-Vermerk unter der Versionsnummer
+
 ## 1.4.0 – 19.11.2026 · Kaufberatung
 - Vorschläge neu: Karte „Kaufberatung“ mit Reichweite je Weinart und Beginn der Reife-Lücke, danach „Gezielt kaufen“ (Weißwein bzw. Riesling, Rotwein, Champagner) mit passenden Weinen von der Wunschliste und aus „nochmal kaufen: ja“, „Erst trinken, nicht kaufen“, „Nachkaufen“ und Wunschliste; „Mal wieder aufmachen“ entfällt (ersetzt durch „Jetzt trinken“ auf der Übersicht)
 - Neue Seite „Kaufberatung“: Trinktempo (Vorschlag aus allen Getrunken-Einträgen, mit −/+ änderbar, gilt auf allen Geräten), Ergebnis, „Reife-Lücke“ (trinkreife Flaschen je Jahr gegen deinen Bedarf) und „Schaffst du das im Fenster?“ je Rebsorte; auf dem iPad als Übersichtsseite
